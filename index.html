@@ -573,38 +573,68 @@ let wrecks=[],wreckRings=new Set(),wreckImpactClock=0;
 function wreckRandom(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
 function wreckMake(x,y,seed){
  const rng=wreckRandom(seed),orientation=Math.floor(rng()*4),breach=Math.floor(rng()*4);
- const walls=new Set(),gold=[],scrap=[],cores=[];
- const put=(x,y)=>walls.add(x+','+y),del=(x,y)=>walls.delete(x+','+y);
- // Symmetric four-point starship: tapered bow/stern, broad swept wings,
- // armoured central core. Breach variant removes a different exterior wing.
- for(const side of [-1,1]){
-  for(let y=3;y<=8;y++){put(side*2,y);if(y>=5)put(side*3,y)}
-  for(let y=3;y<=8;y++){put(side*2,-y);if(y>=5)put(side*3,-y)}
-  for(let x=3;x<=9;x++){const y=Math.max(1,Math.round(4-(x-3)*.48));put(side*x,y);put(side*x,-y)}
-  for(let y=-3;y<=3;y++){put(side*3,y);if(Math.abs(y)===3)put(side*2,y)}
+ const walls=new Set(),gold=[],scrap=[],cores=[],debris=[];
+ const key=(x,y)=>x+','+y,put=(x,y)=>walls.add(key(x,y)),del=(x,y)=>walls.delete(key(x,y));
+ // Blueprint: long north/south spine, broad swept horizontal wings and an open
+ // central junction. The WHITE cells are navigable corridors, not hull plating.
+ // Wall cells are explicitly placed outside the walkable spine and wing lanes.
+ for(const sign of [-1,1]){
+  // Narrow pointed vertical nose/tail with one-cell-wide central corridor.
+  for(let y=4;y<=9;y++){const width=y>=8?1:y>=6?2:3;put(-width,sign*y);put(width,sign*y)}
+  put(0,sign*10);
+  // Swept outer wing contour, following the sketch's stepped outline.
+  for(let xx=4;xx<=10;xx++){
+   const outer=xx<=5?3:xx<=7?2:xx<=9?1:0;
+   put(sign*xx,-outer);put(sign*xx,outer);
+  }
+  // Inner wing ribs; preserve the continuous central passage along y=0.
+  for(let xx=5;xx<=8;xx++){if(xx%2===0){put(sign*xx,-1);put(sign*xx,1)}}
+  // Short central upper/lower hull struts, without sealing the main junction.
+  put(sign*3,-3);put(sign*3,3);
  }
- for(let x=-2;x<=2;x++){put(x,-3);put(x,3)}
- for(let y=-2;y<=2;y++){put(-3,y);put(3,y)}
- for(let y=-9;y<=9;y++)if(Math.abs(y)>=8){put(0,y);put(-1,y);put(1,y)}
- // Distinct entry points: missing wing tip, nose, tail, or flank.
- if(breach===0)for(let x=6;x<=10;x++)for(let y=-4;y<=1;y++)del(x,y);
- if(breach===1)for(let x=-10;x<=-6;x++)for(let y=-1;y<=4;y++)del(x,y);
- if(breach===2)for(let y=-10;y<=-7;y++)for(let x=-2;x<=2;x++)del(x,y);
- if(breach===3)for(let y=7;y<=10;y++)for(let x=-2;x<=2;x++)del(x,y);
- // Ensure an actual corridor from the breach to the central chamber.
- if(breach===0){for(let x=3;x<=7;x++)del(x,-1);del(3,0)}
- if(breach===1){for(let x=-7;x<=-3;x++)del(x,1);del(-3,0)}
- if(breach===2){for(let y=-8;y<=-3;y++)del(0,y)}
- if(breach===3){for(let y=3;y<=8;y++)del(0,y)}
- // Two power cores at opposite sides of the central chamber.
+ // Interior central ribs: broken segments, not continuous inaccessible walls.
+ for(const [xx,yy] of [[-3,-2],[3,-2],[-3,2],[3,2],[-2,-4],[2,-4],[-2,4],[2,4]])put(xx,yy);
+ // Open all main corridors: central chamber, wings, and both vertical spines.
+ const corridors=new Set();
+ for(let xx=-10;xx<=10;xx++)corridors.add(key(xx,0));
+ for(let yy=-9;yy<=9;yy++)corridors.add(key(0,yy));
+ for(let xx=-3;xx<=3;xx++)for(let yy=-2;yy<=2;yy++)corridors.add(key(xx,yy));
+ for(let xx=-2;xx<=2;xx++)for(let yy=-5;yy<=5;yy++)corridors.add(key(xx,yy));
+ for(const cell of corridors)walls.delete(cell);
+ // The four damage variants change ONLY the outer entry opening.
+ if(breach===0){for(let xx=8;xx<=10;xx++)for(let yy=-2;yy<=1;yy++)del(xx,yy)}
+ if(breach===1){for(let xx=-10;xx<=-8;xx++)for(let yy=-1;yy<=2;yy++)del(xx,yy)}
+ if(breach===2){for(let yy=-10;yy<=-8;yy++)for(let xx=-1;xx<=1;xx++)del(xx,yy)}
+ if(breach===3){for(let yy=8;yy<=10;yy++)for(let xx=-1;xx<=1;xx++)del(xx,yy)}
+ // Accessible red cargo zones, placed within the open vertical spine and
+ // central room. Each tile independently has a 75% chance to contain cargo.
+ const redCells=[[0,-7],[0,-6],[0,-5],[0,-4],[0,4],[0,5],[0,6],[0,7],
+ [-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],[-2,2],[-1,2],[0,2],[1,2],[2,2]];
+ for(const [xx,yy] of redCells)if(!walls.has(key(xx,yy))&&rng()<.75)
+  gold.push({x:xx,y:yy,taken:false,value:80+Math.floor(rng()*121)});
+ // Blue upgrade cores in the central chamber, reachable from every entry.
  cores.push({x:-1,y:0,taken:false},{x:1,y:0,taken:false});
- // Red cargo cells: 75% chance of a high-value gold crate per 56x56 tile.
- for(const [xx,yy] of [[0,-2],[0,2],[-1,-2],[1,-2],[-1,2],[1,2],[-2,-1],[2,-1],[-2,1],[2,1],[0,-5],[0,5]]){
-  if(!walls.has(xx+','+yy)&&rng()<.75)gold.push({x:xx,y:yy,taken:false,value:80+Math.floor(rng()*121)})
+ // Brown salvage boxes sit along the main wing corridors.
+ for(const [xx,yy] of [[-8,0],[-6,0],[6,0],[8,0]])if(!walls.has(key(xx,yy)))
+  scrap.push({x:xx,y:yy,taken:false});
+ // Small decorative debris on navigable cells. These never occupy a full tile
+ // or become collision geometry: corridors are narrower visually, but passable.
+ for(const [xx,yy] of [[-7,0],[-5,0],[5,0],[7,0],[0,-8],[0,-3],[0,3],[0,8],[-2,1],[2,-1]]){
+  if(!walls.has(key(xx,yy)))debris.push({x:xx,y:yy,ox:(rng()-.5)*18,oy:(rng()-.5)*18,rot:rng()*6.28})
  }
- // Brown salvage lockers: 25 cosmetic-only Scrap each.
- for(const [xx,yy] of [[-5,-1],[5,1],[-1,-5],[1,5],[-5,1],[5,-1]])if(!walls.has(xx+','+yy))scrap.push({x:xx,y:yy,taken:false});
- return{x,y,seed,orientation,breach,walls:[...walls].map(s=>s.split(',').map(Number)),gold,scrap,cores,elapsed:0,armed:false,countdown:WRECK_ESCAPE,destroyed:false,damageClock:0,announced:false};
+ // Validate a connected path from the centre to EVERY pickup tile. If a wall
+ // would strand a reward, remove it rather than leaving inaccessible loot.
+ const reachable=new Set([key(0,0)]),queue=[[0,0]];
+ for(let i=0;i<queue.length;i++){const [cx,cy]=queue[i];
+  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy,k=key(nx,ny);
+   if(Math.abs(nx)>10||Math.abs(ny)>10||walls.has(k)||reachable.has(k))continue;
+   reachable.add(k);queue.push([nx,ny])
+  }
+ }
+ for(const item of [...gold,...scrap,...cores])if(!reachable.has(key(item.x,item.y))){
+  let cx=item.x,cy=item.y;while(cx!==0||cy!==0){del(cx,cy);if(cx!==0)cx-=Math.sign(cx);else cy-=Math.sign(cy)}del(0,0)
+ }
+ return{x,y,seed,orientation,breach,walls:[...walls].map(s=>s.split(',').map(Number)),gold,scrap,cores,debris,elapsed:0,armed:false,countdown:WRECK_ESCAPE,destroyed:false,damageClock:0,announced:false};
 }
 function wreckGenerateRing(ring){
  if(wreckRings.has(ring))return;wreckRings.add(ring);
@@ -673,6 +703,7 @@ function wreckDraw(camX,camY){
   ctx.fillStyle='#102238';ctx.strokeStyle='#294963';ctx.lineWidth=3;
   ctx.fillRect(-3.2*WRECK_TILE,-3.2*WRECK_TILE,6.4*WRECK_TILE,6.4*WRECK_TILE);
   for(const [x,y] of w.walls){const px=x*WRECK_TILE,py=y*WRECK_TILE;ctx.fillStyle=w.armed?'#8e3540':'#2e4057';ctx.fillRect(px-28,py-28,56,56);ctx.fillStyle='#64778a';ctx.fillRect(px-25,py-25,50,7);ctx.strokeRect(px-27,py-27,54,54)}
+  for(const d of w.debris||[]){ctx.save();ctx.translate(d.x*56+d.ox,d.y*56+d.oy);ctx.rotate(d.rot);ctx.fillStyle='#495464';ctx.fillRect(-10,-6,20,12);ctx.fillStyle='#81909a';ctx.fillRect(-8,-5,11,3);ctx.restore()}
   for(const g of w.gold)if(!g.taken){ctx.fillStyle='#aa4840';ctx.fillRect(g.x*56-21,g.y*56-21,42,42);ctx.fillStyle='#f4c66a';ctx.fillRect(g.x*56-12,g.y*56-12,24,24)}
   for(const s of w.scrap)if(!s.taken){ctx.fillStyle='#986a43';ctx.fillRect(s.x*56-21,s.y*56-21,42,42);ctx.fillStyle='#d9b68a';ctx.fillRect(s.x*56-9,s.y*56-9,18,18)}
   for(const core of w.cores)if(!core.taken){ctx.fillStyle='#1d79ba';ctx.shadowColor='#5fdcff';ctx.shadowBlur=18;ctx.fillRect(core.x*56-22,core.y*56-22,44,44);ctx.shadowBlur=0;ctx.fillStyle='#b6f5ff';ctx.fillRect(core.x*56-9,core.y*56-9,18,18)}
