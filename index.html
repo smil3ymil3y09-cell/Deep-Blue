@@ -578,7 +578,20 @@ let treePanX=20,treePanY=0,treeZoom=.75;
 function applyTreeView(){const w=$('shipworld');if(w)w.style.transform=`translate(${treePanX}px,${treePanY}px) scale(${treeZoom})`}
 function centerTree(){const vp=$('shipviewport');treeZoom=Math.min(.75,Math.max(.32,vp.clientWidth/1600));treePanX=vp.clientWidth/2-1350*treeZoom;treePanY=vp.clientHeight*.72-1790*treeZoom;applyTreeView()}
 const treeVP=$('shipviewport');let panPointer=null;
-treeVP.addEventListener('pointerdown',e=>{if(e.target.closest('.shipnode'))return;panPointer={id:e.pointerId,x:e.clientX,y:e.clientY};treeVP.setPointerCapture(e.pointerId);treeVP.classList.add('dragging')});
+// Direct pointer selection works for both touchscreens and desktop mice,
+ // including browsers that suppress synthetic click events after transforms.
+treeVP.addEventListener('pointerdown',e=>{
+ const node=e.target.closest('.shipnode');
+ if(node){
+  e.stopPropagation();
+  selectedShip=node.dataset.id;
+  renderShipTree();
+  return;
+ }
+ panPointer={id:e.pointerId,x:e.clientX,y:e.clientY};
+ treeVP.setPointerCapture(e.pointerId);
+ treeVP.classList.add('dragging');
+});
 treeVP.addEventListener('pointermove',e=>{if(!panPointer||e.pointerId!==panPointer.id)return;treePanX+=e.clientX-panPointer.x;treePanY+=e.clientY-panPointer.y;panPointer.x=e.clientX;panPointer.y=e.clientY;applyTreeView()});
 function endTreePan(e){if(panPointer&&e.pointerId===panPointer.id){panPointer=null;treeVP.classList.remove('dragging')}}
 treeVP.addEventListener('pointerup',endTreePan);treeVP.addEventListener('pointercancel',endTreePan);
