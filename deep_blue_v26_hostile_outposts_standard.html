@@ -1,0 +1,577 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DEEP BLUE // Salvage</title><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050c20;color:#e9f5ff;font-family:system-ui,Segoe UI,sans-serif}button{font:inherit;cursor:pointer}#game{display:none;position:fixed;inset:0}canvas{width:100%;height:100%;display:block}#menu{height:100vh;overflow:auto;background:radial-gradient(ellipse at 50% 12%,#153d78 0%,#0b1e47 44%,#050e29 100%);padding:16px 20px 50px}.top{max-width:1250px;margin:auto;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}.brand{font-size:13px;letter-spacing:.32em;color:#75b7e7;font-weight:800}.title{font-size:clamp(25px,4vw,44px);font-weight:900;letter-spacing:.08em;margin:5px 0}.muted{color:#9fb9d8;font-size:13px}.gold{border:1px solid #bd9d49;background:#3e361c;padding:11px 16px;border-radius:13px;color:#ffe68d;font-weight:800}.launch{border:1px solid #8feaff;border-radius:12px;background:linear-gradient(135deg,#1f9ed7,#5ce7e2);color:#041b31;padding:15px 27px;font-weight:900;box-shadow:0 0 25px #23bde466}.launch:hover{filter:brightness(1.13)}.panel{max-width:1250px;margin:20px auto 0;border:1px solid #37679a;border-radius:20px;background:#071735bd;box-shadow:0 10px 60px #0005;padding:18px}.panelhead{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.panel h2{font-size:16px;letter-spacing:.18em;margin:0;color:#c6e9ff}.tree{position:relative;height:580px;min-width:690px;overflow:hidden;background:radial-gradient(circle at 50% 48%,#173b68 0%,#0a1a3a 34%,#07132c 75%);border:1px solid #254c7a;border-radius:15px;margin-top:15px}.tree:before{content:"";position:absolute;inset:0;opacity:.22;background-image:radial-gradient(#8cc9ff 1px,transparent 1px);background-size:37px 37px}.treescroll{overflow-x:auto}.links{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.node{position:absolute;transform:translate(-50%,-50%);border:2px solid var(--c);border-radius:17px;background:#0b2247;box-shadow:0 0 18px color-mix(in srgb,var(--c),transparent 50%),inset 0 0 20px #25528177;color:#eaf7ff;width:180px;min-height:103px;padding:12px 8px;text-align:center;transition:.15s}.node:hover{transform:translate(-50%,-50%) scale(1.05)}.node strong{display:block;font-size:14px}.node small{display:block;color:#bbd4ed;margin:6px 0;font-size:11px}.node span{font-size:12px;color:#ffe08c;font-weight:800}.node.purchased{background:#163e48}.node:disabled{cursor:default;opacity:.55}.core{width:206px;min-height:135px;border-radius:24px}.empty{position:absolute;transform:translate(-50%,-50%);border:1px dashed #53749b;border-radius:50%;height:43px;width:43px;display:grid;place-items:center;color:#7194ba;background:#0c2344}.note{font-size:12px;color:#a2bad7;margin-top:13px}.hud{position:fixed;left:16px;right:16px;top:14px;display:flex;gap:12px;justify-content:space-between;align-items:flex-start;pointer-events:none}.hudbox{background:#06162ddc;border:1px solid #3c7596;border-radius:12px;padding:12px 16px;backdrop-filter:blur(6px)}.hudbig{font-weight:900;font-size:22px}.hint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);font-size:12px;color:#c2d9e8;background:#07162cbb;padding:9px 16px;border-radius:10px;text-align:center;pointer-events:none}.toast{position:fixed;top:98px;left:50%;transform:translateX(-50%);border:1px solid #4c9dc4;background:#0a2442e8;padding:12px 20px;border-radius:12px;text-align:center;display:none}.back{pointer-events:auto;background:#15395b;border:1px solid #6c9ac0;border-radius:8px;color:white;padding:7px 12px;margin-top:8px}.result{position:fixed;inset:0;background:#020917dc;display:none;align-items:center;justify-content:center;padding:15px}.resultcard{background:#0b2245;border:1px solid #69a8da;border-radius:20px;padding:28px;text-align:center;max-width:420px;width:100%;box-shadow:0 0 65px #197ebc66}.resultcard h2{font-size:30px}.resultcard p{color:#c5d9eb}.resultcard button{margin-top:12px}.stationlabel{color:#8ceeea}.warn{color:#ffc08c}@media(max-width:650px){.top{justify-content:center;text-align:center}.hud{font-size:11px}.hudbox{padding:8px}.hudbig{font-size:17px}.tree{height:530px}}
+
+#game{touch-action:none}#joystick{display:none;position:fixed;left:max(22px,env(safe-area-inset-left));bottom:max(32px,env(safe-area-inset-bottom));width:142px;height:142px;border-radius:50%;border:3px solid #76dfff88;background:radial-gradient(circle,#28628b66,#0a2549bb);box-shadow:0 0 25px #24a4d855;touch-action:none;user-select:none;z-index:5}#stick{position:absolute;left:50%;top:50%;width:58px;height:58px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #9befff;background:linear-gradient(135deg,#5ad5ef,#2366a5);box-shadow:0 0 22px #5ae6ff99;pointer-events:none}#joylabel{position:absolute;left:0;right:0;top:-25px;text-align:center;font-size:11px;color:#bdefff;letter-spacing:.15em;pointer-events:none}body.mobile #joystick{display:block}body.mobile .hint{bottom:max(10px,env(safe-area-inset-bottom));left:auto;right:12px;transform:none;max-width:45%;font-size:11px}body.mobile .hud{left:8px;right:8px;top:max(8px,env(safe-area-inset-top));gap:5px}body.mobile .hudbox{padding:7px 9px;font-size:11px}body.mobile .hudbig{font-size:19px}body.mobile .back{padding:6px 9px;font-size:11px}body.mobile #menu{padding-bottom:calc(35px + env(safe-area-inset-bottom))}body.mobile .launch{min-height:48px}
+
+/* V0.3: clean, compact research constellation without its own background */
+.panel:first-of-type{background:transparent;border:0;box-shadow:none;padding:8px 0}
+.tree{height:380px;min-width:540px;background:transparent;border:0;border-radius:0;margin-top:8px}
+.tree:before{display:none}
+.node{width:126px;min-height:75px;padding:7px 5px;border-radius:10px;background:#0c2347;box-shadow:0 0 10px color-mix(in srgb,var(--c),transparent 60%);border-width:1.5px}
+.node strong{font-size:10px;letter-spacing:.02em}
+.node small{font-size:9px;margin:3px 0}
+.node span{font-size:10px}
+.core{width:148px;min-height:100px;border-radius:14px}
+.empty{width:27px;height:27px;font-size:12px;background:#0b2040;border-color:#42638a}
+.tree .links{opacity:.8}
+@media(max-width:650px){.tree{height:360px;min-width:540px}.treescroll{margin:0 -8px}.panel:first-of-type{padding:8px}}
+
+/* V0.6: mini research constellation */
+.panel:first-of-type{background:transparent;border:0;box-shadow:none;padding:8px 0}
+.tree{height:440px;min-width:760px;background:transparent;border:0;margin-top:0}
+.tree:before{display:none}
+.node{width:88px;min-height:56px;padding:5px 3px;border-radius:7px;border-width:1px;background:#0c2142dd;box-shadow:0 0 8px color-mix(in srgb,var(--c),transparent 66%)}
+.node strong{font-size:8px;letter-spacing:0}.node small{font-size:7px;margin:2px 0}.node span{font-size:8px}.core{width:104px;min-height:73px;border-radius:9px}
+.empty{height:17px;width:17px;font-size:11px;background:transparent;border-color:#45668c}
+.branchlabel{position:absolute;transform:translate(-50%,-50%);font-weight:900;font-size:20px;letter-spacing:.2em;color:#b9dfff;text-shadow:0 0 16px #4aaeff99;pointer-events:none}
+@media(max-width:650px){.tree{height:440px;min-width:760px}.treescroll{overflow-x:auto}.branchlabel{font-size:19px}}
+
+/* Compact ability loadout */
+.abilitybtn{background:#122f58;border:1px solid #56c6e9;color:#d8f6ff;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer}
+.abilitybtn:hover{box-shadow:0 0 15px #40c9ff55}
+#abilitiesPanel{display:none;max-width:1250px;margin:15px auto 0;padding:18px;border:1px solid #396b9d;border-radius:14px;background:#081c3b}
+#abilitiesPanel h2{margin:0 0 8px;color:#c8eaff;font-size:16px;letter-spacing:.14em}
+.abilitygrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:14px}
+.abilityslot{min-height:90px;border:1px dashed #50739d;border-radius:9px;padding:10px;background:#0a2244;color:#8faed2;font-size:12px}
+.abilityslot.filled{border:1px solid #6bcbf1;color:#e7f8ff;background:#11345c}
+.abilityslot b{display:block;font-size:11px;color:#74b5df;margin-bottom:6px}
+.abilityslot button{display:block;margin-top:8px;padding:6px 10px;border:1px solid #67c7eb;background:#163e63;color:white;border-radius:7px;font-size:11px}
+.abilitydescription{font-size:12px;color:#abc9e5;line-height:1.5;margin-top:10px}
+@media(max-width:650px){.abilitygrid{grid-template-columns:repeat(2,minmax(0,1fr))}.abilityslot{min-height:80px}}
+
+/* V1.7 restored central constellation with northern SHIP branch */
+.shipviewport{height:590px;overflow:hidden;position:relative;border:1px solid #294d79;border-radius:12px;background:radial-gradient(circle at 40% 30%,#10294b,#07162d 75%);touch-action:none;cursor:grab;user-select:none}
+.shipviewport.dragging{cursor:grabbing}.shipworld{position:absolute;left:0;top:0;width:2700px;height:2300px;transform-origin:0 0;pointer-events:none}.shipworld .shipnode{pointer-events:auto}
+.shiplines{position:absolute;left:-1100px;top:0;width:3800px;height:2600px;overflow:visible;pointer-events:none}.shipnode{position:absolute;width:182px;min-height:106px;transform:translate(-50%,-50%);border:1px solid #4274a6;background:#10274b;border-radius:11px;color:#dcefff;text-align:left;padding:10px;box-shadow:0 3px 18px #0007;cursor:pointer;touch-action:none}.shipnode b{display:block;color:#8ed9ff;font-size:12px}.shipnode .desc{display:block;font-size:10px;line-height:1.4;margin:5px 0;color:#b2c9e2}.shipnode .cost{display:block;font-size:11px;font-weight:800;color:#ffe3a1}.shipnode .level{font-size:10px;color:#a7d9ff}.shipnode.locked{opacity:.55;border-style:dashed}.shipnode.maxed{border-color:#77e8b5;background:#123c3f}.shipnode.selected{outline:2px solid #f7d47a;outline-offset:2px}.shiptoolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:12px 0}.shiptoolbar button,.shipdetail button,.legacybuy{border:1px solid #4c82b7;background:#13345d;color:#e4f6ff;border-radius:8px;padding:9px 12px}.shipdetail{margin-top:10px;padding:13px;border:1px solid #385c87;border-radius:10px;background:#091b35;line-height:1.5}.shipdetail h3{margin:0 0 5px;font-size:15px}.shipdetail p{margin:5px 0;color:#b8d1ea;font-size:12px}.shipdetail button{margin:7px 7px 0 0}.shipdetail button:disabled{opacity:.4}.shipdetail .refund{border-color:#d0a276;color:#ffe0bb}.legacystrip{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.legacystrip button{font-size:11px}.researchhint{font-size:12px;color:#a7c7e7}.shiptag{position:absolute;font-weight:900;letter-spacing:4px;color:#88b7df;font-size:23px;pointer-events:none}
+
+/* SHIP-only cost heat map: cool blue to violet to hot red. */
+.shipnode:not(.researchcore){background:var(--node-bg,#112b50);border:2px solid var(--node-border,#5798d4);box-shadow:0 0 18px color-mix(in srgb,var(--node-border,#5798d4),transparent 65%);transition:background .18s,border-color .18s}
+.shipnode:not(.researchcore) b{color:#f2f7ff}.shipnode:not(.researchcore).locked{opacity:.65}
+.shipnode.researchcore{width:190px;min-height:132px;background:radial-gradient(circle at 50% 35%,#21698a,#102849 75%);border:3px solid #6ceaff;box-shadow:0 0 34px #38c9ff66,0 0 70px #266fa944;text-align:center;border-radius:19px}
+.shipnode.researchcore b{color:#c2faff;font-size:14px}.shipnode.researchcore .desc{font-size:11px}
+.shiptag{white-space:nowrap}.shipviewport{background-color:#061327;background-image:radial-gradient(#6d95bb33 1px,transparent 1px),radial-gradient(circle at center,#0d2343,#061327 80%);background-size:34px 34px,100% 100%}
+</style></head><body><div id="menu"><header class="top"><div><div class="brand">SALVAGE OPERATIONS // V2.6 · HOSTILE OUTPOSTS</div><div class="title">DEEP BLUE</div><div class="muted">A tiny ship. A vast asteroid field. A lot of luck.</div></div><div class="gold">◆ <span id="gold">0</span> GOLD</div><button class="abilitybtn" id="abilitiesToggle">ABILITIES · 1/10</button><button class="launch" id="launch">START NEW RUN ▶</button></header><section id="abilitiesPanel"><h2>ABILITY LOADOUT — 10 SLOTS</h2><div class="muted">Equip abilities here before launching. Equip Asteroid Tracker in any empty slot to see the nearest uncleared Golden, Obsidian and Magma formations during expeditions.</div><div id="abilitySlots" class="abilitygrid"></div><div class="abilitydescription">Dedicating Myself: During the last 5 seconds of the return timer, if you are more than 500 distance from the station and have exactly 1 hull, restore 1 hull. Return without taking further damage to earn +5 gold after all multipliers. Triggers once per run.</div></section><section class="panel"><div class="panelhead"><h2>RESEARCH CONSTELLATION</h2><span class="muted">Purchase upgrades to improve future expeditions</span></div><div class="shiptoolbar"><button id="treeReset">CENTER TREE</button><button id="treeZoomIn">ZOOM +</button><button id="treeZoomOut">ZOOM −</button><span class="researchhint">Drag empty space to pan · Mouse wheel to zoom · Tap a node to inspect · Unlimited panning</span></div><div class="shipviewport" id="shipviewport"><div class="shipworld" id="shipworld"><svg class="shiplines" id="shiplines" viewBox="-1100 0 3800 2600"></svg><div class="shiptag" style="left:1350px;top:60px;transform:translateX(-50%)">SHIP ENGINEERING ↑</div><div class="shiptag" style="left:360px;top:1770px">LUCK ◀</div><div class="shiptag" style="left:2040px;top:1770px">PROFITS ▶</div><div class="shiptag" style="left:1230px;top:2110px">BONUSES ↓</div><div id="shipnodes"></div></div></div><div class="shipdetail" id="shipdetail">Select CORE, SHIP or LUCK research to inspect it.</div><div class="researchhint" style="margin-top:12px">LEGACY RESEARCH · Existing purchases remain available</div><div class="legacystrip"><button class="legacybuy" id="core"></button><button class="legacybuy" id="speed"></button><button class="legacybuy" id="fuel"></button><button class="legacybuy" id="returnfuel"></button><button class="legacybuy" id="hullbonus"></button></div><div class="note" id="researchnote">Refunds return half of the exact amount spent on the refunded level. Dependent research must be refunded first.</div></section><section class="panel"><h2>EXPEDITION BRIEFING</h2><p class="muted">Collect yellow crates during your collection phase, then return to the glowing station. Ship research extends timers, hull, emergency braking, automatic repair and drilling capacity. Ordinary crates contain 1 gold. Golden formations with multiple valuable crates wait at 3000 distance; obsidian formations unlock at 10000 and magma formations at 20000, at a random bearing each run, inside a connected 56-pixel-wide golden asteroid labyrinth, with a clear zone that excludes ordinary asteroids. Use the on-screen joystick on mobile or your mouse on desktop to accelerate; coasting slows gently. Equip Emergency Brake in an ability slot, then press its number (slot 10 = 0) to stop immediately. Equip Asteroid Tracker to display the nearest uncleared Golden, Obsidian and Magma formations; collecting every valuable crate in a formation clears it and switches tracking to the next nearest. HAL automatically repairs hull during expeditions. Hostile red-square outposts spawn at least 2,000 units apart, fire three bright projectiles per second within 500 units, and shut down when rammed without collision damage. Fired bullets continue travelling after shutdown until they leave the screen. Your gold is banked only when you return safely. Your furthest distance each run gives a free gold multiplier: 1000 distance = ×1, 1345 = ×1.345. Gold is stored to three decimal places, always rounded down.</p></section></div><div id="game"><canvas id="canvas"></canvas><div class="hud"><div class="hudbox"><div id="phase">SCAVENGING</div><div class="hudbig" id="timer">30.0s</div><div id="hp">HULL ◆◆◆◆◆</div><div id="trackerHUD" style="display:none;margin-top:8px;font-size:12px;line-height:1.65;color:#e8d9b1"></div></div><div class="hudbox" style="text-align:right"><div>UNBANKED <b id="haul">0</b> ◆</div><div>DISTANCE TO STATION <b id="distance">0</b></div><div>FURTHEST <b id="maxdistance">0</b> · <b id="distmult">×1.000</b></div><div class="stationlabel" id="direction">STATION ◉</div><button class="back" id="abort">ABORT RUN</button></div></div><div class="toast" id="toast"></div><button id="brakeMobile" style="display:none;position:absolute;bottom:170px;right:16px;z-index:30;background:#19496d;border:2px solid #70d8ff;color:white;border-radius:12px;padding:14px;font-weight:800">BRAKE</button><div class="hint" id="controlhint">Move mouse to steer · Emergency Brake uses its numbered slot · Asteroid Tracker displays nearby uncleared formations</div><div id="joystick"><div id="joylabel">THRUST CONTROL</div><div id="stick"></div></div></div><div class="result" id="result"><div class="resultcard"><h2 id="resulttitle"></h2><p id="resulttext"></p><button class="launch" id="backmenu">BACK TO RESEARCH</button></div></div><script>
+const SPRITE='data:image/png;base64,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';const shipImg=new Image();shipImg.src=SPRITE;
+const $=id=>document.getElementById(id);const cv=$('canvas'),ctx=cv.getContext('2d');let W=0,H=0,dpr=1;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false}addEventListener('resize',resize);resize();
+const defaults={gold:0,core:0,speed:0,fuel:0,returnfuel:0,hullbonus:0,dedicatingEquipped:true,shipLevels:{},shipSpent:{},legacySpent:{}};let save;try{save={...defaults,...JSON.parse(localStorage.getItem('deepblue-v23-standard')||'{}')}}catch(e){save={...defaults}};save.gold=floorGold(Math.max(0,Number(save.gold)||0));save.shipLevels=save.shipLevels||{};save.shipSpent=save.shipSpent||{};save.legacySpent=save.legacySpent||{};save.luckLevels=save.luckLevels||{};save.luckSpent=save.luckSpent||{};
+// Previous versions had acceleration upgrades here; cap legacy levels at the new research maxima.
+for(const [id,max] of [['s02',10],['s10',1],['s14',20]]){if((Number(save.shipLevels[id])||0)>max)save.shipLevels[id]=max;}
+if(save.brakeSlot===undefined)save.brakeSlot=-1;
+if(save.trackerSlot===undefined)save.trackerSlot=-1;
+function floorGold(n){return Math.floor((n+1e-9)*1000)/1000}function goldText(n){return floorGold(n).toFixed(3).replace(/\.?0+$/,"")}function persist(){localStorage.setItem('deepblue-v23-standard',JSON.stringify(save))}function updateMenu(){
+ $('gold').textContent=goldText(save.gold);
+ for(const id of ['core','speed','fuel','returnfuel','hullbonus']){
+  const el=$(id);const costs={speed:15,fuel:30,returnfuel:30,hullbonus:30};
+  const cost=id==='core'?2*save.core+3:costs[id];
+  el.textContent=(id==='returnfuel'?'RETURN':id==='hullbonus'?'HULL BONUS':id.toUpperCase())+' · '+(id==='core'?`LV ${save.core} · ${cost} GOLD`:save[id]?'✓ RESEARCHED':cost+' GOLD');el.disabled=id!=='core'&&!!save[id];
+ }
+ renderShipTree();
+}
+function brakeCooldown(){return 60-(shipLevel('s02')-1)*50/9}
+function equippedBrakeSlot(){return (Number(save.shipLevels.s02)||0)>0?Math.max(-1,Math.min(9,Number(save.brakeSlot??-1))):-1}
+function equippedTrackerSlot(){const v=Number(save.trackerSlot);return Number.isInteger(v)&&v>=0&&v<10?v:-1}
+function renderAbilities(){
+ const slots=$('abilitySlots');slots.innerHTML='';
+ const brake=equippedBrakeSlot(),tracker=equippedTrackerSlot();
+ for(let i=0;i<10;i++){
+  const slot=document.createElement('div');slot.className='abilityslot';
+  const hasDedication=i===0&&save.dedicatingEquipped,hasBrake=i===brake,hasTracker=i===tracker;
+  if(hasDedication||hasBrake||hasTracker)slot.classList.add('filled');
+  slot.innerHTML='<b>SLOT '+String(i+1).padStart(2,'0')+' · KEY '+(i===9?'0':i+1)+'</b><strong>'+(hasDedication?'✦ Dedicating Myself':hasBrake?'⏹ Emergency Brake':hasTracker?'◎ Asteroid Tracker':'Empty')+'</strong>';
+  if(i===0){const btn=document.createElement('button');btn.textContent=save.dedicatingEquipped?'UNEQUIP DEDICATING':'EQUIP DEDICATING';btn.onclick=()=>{if(!save.dedicatingEquipped){if(save.brakeSlot===0)save.brakeSlot=-1;if(save.trackerSlot===0)save.trackerSlot=-1}save.dedicatingEquipped=!save.dedicatingEquipped;persist();renderAbilities()};slot.appendChild(btn)}
+  if(hasBrake){const btn=document.createElement('button');btn.textContent='UNEQUIP BRAKE';btn.onclick=()=>{save.brakeSlot=-1;persist();renderAbilities()};slot.appendChild(btn)}
+  else if((Number(save.shipLevels.s02)||0)>0&&!hasDedication&&!hasTracker){const btn=document.createElement('button');btn.textContent='EQUIP BRAKE HERE';btn.onclick=()=>{save.brakeSlot=i;persist();renderAbilities()};slot.appendChild(btn)}
+  if(hasTracker){const btn=document.createElement('button');btn.textContent='UNEQUIP TRACKER';btn.onclick=()=>{save.trackerSlot=-1;persist();renderAbilities()};slot.appendChild(btn)}
+  else if(!hasDedication&&!hasBrake){const btn=document.createElement('button');btn.textContent='EQUIP TRACKER HERE';btn.onclick=()=>{save.trackerSlot=i;persist();renderAbilities()};slot.appendChild(btn)}
+  slots.appendChild(slot);
+ }
+ $('abilitiesToggle').textContent='ABILITIES · '+((save.dedicatingEquipped?1:0)+(brake>=0?1:0)+(tracker>=0?1:0))+'/10';
+}
+$('abilitiesToggle').onclick=()=>{const panel=$('abilitiesPanel');panel.style.display=panel.style.display==='block'?'none':'block';renderAbilities()};
+renderAbilities();
+function buy(id){const cost=id==='core'?2*save.core+3:id==='speed'?15:30;if(id!=='core'&&save[id])return;if(save.gold<cost){$('researchnote').textContent=`Not enough gold for ${id==='core'?'crate frequency':id}. You need ${cost-save.gold} more.`;return}save.gold=floorGold(save.gold-cost);(save.legacySpent[id]??=[]).push(cost);save[id]++;persist();updateMenu();$('researchnote').textContent=`Research purchased! ${id==='core'?`Crate spawn chance increased by +0.001% (level ${save.core}).`:'Upgrade permanently activated.'}`}
+for(const id of ['core','speed','fuel','returnfuel','hullbonus'])$(id).onclick=()=>buy(id);
+function refundLegacy(id){if(!save[id])return;const cost=(save.legacySpent[id]||[]).pop()??(id==='core'?2*(save.core-1)+3:id==='speed'?15:30);save[id]--;save.gold=floorGold(save.gold+Math.floor(cost*500)/1000);persist();updateMenu()}
+for(const id of ['core','speed','fuel','returnfuel','hullbonus']){const refund=document.createElement('button');refund.className='legacybuy';refund.textContent='↩ REFUND '+id.toUpperCase();refund.onclick=()=>refundLegacy(id);$('core').parentNode.appendChild(refund)}
+
+const SHIP_RESEARCH=[
+{id:'s01',name:'Reinforced Hull',max:30,base:30,r:1.25,desc:'+1 maximum hull per level.',x:1350,y:1500,req:[]},
+{id:'s02',name:'Emergency Brake',max:10,base:20,r:2.00,desc:'Equip in an ability slot and press its number (10 = 0) to instantly reset velocity. Cooldown: 60s at Lv1, 10s at Lv10.',x:1010,y:1230,req:[['s01',1]]},
+{id:'s03',name:'Reverse Thrusters',max:30,base:35,r:1.35,desc:'+5% reverse thrust and braking per level.',x:1340,y:1230,req:[['s01',1]]},
+{id:'s04',name:'Fuel Capacity',max:50,base:40,r:1.25,desc:'+5 seconds of collection time per level.',x:1670,y:1230,req:[['s01',1]]},
+{id:'s05',name:'Return Reserves',max:50,base:40,r:1.25,desc:'+5 seconds of return time per level.',x:2000,y:1230,req:[['s01',1]]},
+{id:'s06',name:'Asteroid Disintegration',max:20,base:120,r:1.38,desc:'Asteroids that damage you disintegrate; +1 gold per level for each destroyed asteroid.',x:350,y:960,req:[['s01',3]]},
+{id:'s07',name:'Drill Drive',max:20,base:250,r:1.40,desc:'One high-speed entry per phase. Remain inside connected rock to burrow safely, up to 5,000 units. Air contact ends the drill immediately.',x:750,y:960,req:[['s02',3]]},
+{id:'s08',name:'Impact Dampeners',max:20,base:100,r:1.35,desc:'Reduce collision knockback by 4% per level (80% max).',x:1150,y:960,req:[['s01',5]]},
+{id:'s09',name:'Hull Reinforcement',max:10,base:350,r:2.50,desc:'+1 maximum hull per level (expensive late-game reinforcement).',x:1550,y:960,req:[['s01',15]]},
+{id:'s10',name:'HAL · Hull Assistant',max:1,base:300,r:1.45,desc:'Unlock HAL: automatically repairs 1 missing hull every 60 seconds during an expedition.',x:550,y:680,req:[['s02',5]]},
+{id:'s11',name:'Inertial Control',max:20,base:250,r:1.45,desc:'+5% directional velocity control per level.',x:1000,y:680,req:[['s03',10]]},
+{id:'s12',name:'Drill Compression',max:20,base:400,r:1.50,desc:'Reduce drill entry speed requirement by 3% per level, with a minimum entry speed.',x:1450,y:680,req:[['s07',5]]},
+{id:'s13',name:'Reactive Plating',max:10,base:750,r:2.25,desc:'+1 protective shield layer per level; shields absorb hits before hull.',x:1900,y:680,req:[['s08',10],['s09',3]]},
+{id:'s14',name:'HAL Speed',max:20,base:5000,r:1.30,desc:'HAL repairs faster: every level reduces the repair interval by 1 second, from 60s to 40s at Lv20.',x:1040,y:400,req:[['s10',1],['s11',10]]},
+{id:'s15',name:'Miniaturisation',max:3,prices:[10000,50000,250000],desc:'Ship width becomes ×0.8, ×0.6, then ×0.5 of its original size. Final SHIP research.',x:1350,y:170,req:[['s14',20],['s12',10],['s13',5]]}
+];
+const LUCK_RESEARCH=[
+{id:'l01',name:'Cluster Frequency',max:100,base:15,r:1.12,desc:'+1 percentage point chance for ordinary crate spawns to become clusters per level.',x:880,y:1840,req:[]},
+{id:'l02',name:'Cluster Size',max:30,base:40,r:1.25,desc:'+1 extra crate per cluster per level.',x:620,y:1650,req:[['l01',5]]},
+{id:'l03',name:'Streak Siphon',max:10,base:250,r:1.60,desc:'After 15 crates without hull damage, each later crate can award ×3 gold. Chance: 8% at Lv1 to 75% at Lv10.',x:350,y:1520,req:[['l02',5]]},
+{id:'l04',name:'Salvage Density',max:100,base:30,r:1.15,desc:'+0.005 percentage points ordinary crate spawn chance per level.',x:870,y:2100,req:[]},
+{id:'l05',name:'Golden Cache Locations',max:4,base:500,r:2.50,desc:'+1 guaranteed golden formation at 3,000 distance per level (one exists by default).',x:620,y:1930,req:[['l01',10]]},
+{id:'l06',name:'Golden Richness',max:20,base:150,r:1.40,desc:'+2 gold per golden crate per level (base 12).',x:360,y:1810,req:[['l05',1]]},
+{id:'l07',name:'Golden Abundance',max:15,base:250,r:1.50,desc:'+1 golden crate per formation per level (base 3).',x:350,y:2070,req:[['l05',2]]},
+{id:'l08',name:'Obsidian Discovery',max:5,base:1500,r:3.00,desc:'Unlocks obsidian formations at 10,000 distance; each level grants one formation.',x:70,y:1900,req:[['l06',5],['l07',5]]},
+{id:'l09',name:'Obsidian Richness',max:20,base:750,r:1.50,desc:'+5 gold per obsidian crate per level (base 30).',x:-210,y:1760,req:[['l08',1]]},
+{id:'l10',name:'Obsidian Abundance',max:20,base:1000,r:1.60,desc:'+1 obsidian crate per formation per level (base 5).',x:-210,y:2010,req:[['l08',2]]},
+{id:'l11',name:'Magma Discovery',max:20,base:5000,r:1.75,desc:'Unlocks magma formations at 20,000 distance; each level grants one formation.',x:-490,y:1890,req:[['l09',8],['l10',8]]},
+{id:'l12',name:'Magma Richness',max:20,base:2500,r:1.60,desc:'+25 gold per magma crate per level (base 100).',x:-770,y:1730,req:[['l11',1]]},
+{id:'l13',name:'Magma Abundance',max:20,base:3500,r:1.65,desc:'+2 magma crates per formation per level (base 10).',x:-770,y:1990,req:[['l11',3]]},
+{id:'l14',name:'Bronze Asteroid Discovery',max:20,base:7500,r:1.80,desc:'Unlocks fast bronze asteroids. At Lv20 their spawn chance equals the original unupgraded ordinary crate chance.',x:-490,y:2280,req:[['l04',10],['l08',1]]},
+{id:'l15',name:'Bronze Extraction',max:100,base:10000,r:1.10,desc:'+0.1 gold per second per nearby bronze asteroid per level (base 3, max 13).',x:-820,y:2290,req:[['l14',10],['l12',10],['l13',10]]}
+];
+const LUCK_BY_ID=Object.fromEntries(LUCK_RESEARCH.map(n=>[n.id,n]));
+const luckLevel=id=>Math.max(0,Math.min(LUCK_BY_ID[id].max,Number(save.luckLevels[id])||0));
+function luckCost(n,level){return Math.ceil(n.base*Math.pow(n.r,level)-1e-9)}
+function luckUnlocked(n){return n.req.every(([id,l])=>luckLevel(id)>=l)}
+function purchaseLuck(id){const n=LUCK_BY_ID[id],l=luckLevel(id);if(l>=n.max||!luckUnlocked(n))return;const cost=luckCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.luckLevels[id]=l+1;(save.luckSpent[id]??=[]).push(cost);persist();updateMenu()}
+function refundLuck(id){const n=LUCK_BY_ID[id],l=luckLevel(id);if(!l)return;if(LUCK_RESEARCH.some(other=>other.req.some(([dep,need])=>dep===id&&luckLevel(other.id)>0&&l-1<need))){$('researchnote').textContent='Refund dependent LUCK upgrades first.';return}const cost=(save.luckSpent[id]||[]).pop()??luckCost(n,l-1);save.gold=floorGold(save.gold+Math.floor(cost*500)/1000);save.luckLevels[id]=l-1;persist();updateMenu()}
+const SHIP_BY_ID=Object.fromEntries(SHIP_RESEARCH.map(n=>[n.id,n]));
+const DRILL_DIST=[0,60,80,110,150,200,270,350,450,600,800,1050,1350,1700,2100,2550,3050,3600,4250,4700,5000];
+const shipLevel=id=>Math.max(0,Math.min(SHIP_BY_ID[id].max,Number(save.shipLevels[id])||0));
+function shipCost(n,level){return n.prices?n.prices[level]:Math.ceil(n.base*Math.pow(n.r,level)-1e-9)}
+function shipUnlocked(n){return n.req.every(([id,l])=>shipLevel(id)>=l)}
+let selectedShip='core';
+function shipRequirements(n){return n.req.length?n.req.map(([id,l])=>SHIP_BY_ID[id].name+' Lv '+l).join(' + '):'Starting research'}
+function renderShipTree(){
+ const holder=$('shipnodes');if(!holder)return;
+ if(!holder.children.length){
+  const core=document.createElement('button');core.className='shipnode researchcore';core.dataset.id='core';core.style.left='1350px';core.style.top='1790px';core.onclick=()=>{selectedShip='core';renderShipTree()};holder.appendChild(core);
+  for(const n of [...SHIP_RESEARCH,...LUCK_RESEARCH]){const btn=document.createElement('button');btn.className='shipnode';btn.style.left=n.x+'px';btn.style.top=n.y+'px';btn.dataset.id=n.id;btn.onclick=()=>{selectedShip=n.id;renderShipTree()};holder.appendChild(btn)}
+  const svg=$('shiplines');
+  function connect(x1,y1,x2,y2,color='#578abf',width=3){const line=document.createElementNS('http://www.w3.org/2000/svg','line');for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:color,'stroke-width':width}))line.setAttribute(k,v);svg.appendChild(line)}
+  connect(1350,1724,1350,1560,'#6cdcf4',5);
+  for(const n of SHIP_RESEARCH)for(const [id] of n.req){const from=SHIP_BY_ID[id];connect(from.x,from.y-54,n.x,n.y+54)}
+  for(const n of LUCK_RESEARCH){if(!n.req.length)connect(1255,1790,n.x+100,n.y,'#c99d48',3);for(const [id] of n.req){const from=LUCK_BY_ID[id];connect(from.x-95,from.y,n.x+95,n.y,'#c99d48',3)}}
+  // Four directions are preserved for future research branches.
+  connect(1255,1790,560,1790,'#4773a0',3);connect(1445,1790,2200,1790,'#4773a0',3);connect(1350,1856,1350,2080,'#4773a0',3);
+ }
+ const core=holder.querySelector('[data-id="core"]');const coreCost=2*save.core+3;
+ core.className='shipnode researchcore'+(selectedShip==='core'?' selected':'');
+ core.innerHTML='<b>◆ CORE · CRATE DENSITY</b><span class="desc">+0.001% crate spawn chance per level · Unlimited levels</span><span class="level">LEVEL '+save.core+' / ∞</span><span class="cost">'+coreCost.toLocaleString('en-GB')+' GOLD</span>';
+ for(const btn of holder.children){if(btn.dataset.id==='core')continue;const isLuck=btn.dataset.id.startsWith('l'),n=isLuck?LUCK_BY_ID[btn.dataset.id]:SHIP_BY_ID[btn.dataset.id],l=isLuck?luckLevel(n.id):shipLevel(n.id),unlocked=isLuck?luckUnlocked(n):shipUnlocked(n);const cost=l<n.max?(isLuck?luckCost(n,l):shipCost(n,l)):0;
+  const heat=l>=n.max?1:Math.max(0,Math.min(1,Math.log10(Math.max(1,cost)/20)/Math.log10(250000/20)));
+  const hue=isLuck?Math.round(38-30*heat):Math.round(207-207*heat);const light=Math.round(31+heat*5);
+  btn.style.setProperty('--node-bg',`hsl(${hue} 57% ${light-12}%)`);btn.style.setProperty('--node-border',`hsl(${hue} 85% ${Math.min(76,light+23)}%)`);
+  btn.className='shipnode'+(!unlocked?' locked':'')+(l>=n.max?' maxed':'')+(selectedShip===n.id?' selected':'');
+  btn.innerHTML='<b>'+n.id.toUpperCase()+' · '+n.name+'</b><span class="desc">'+n.desc+'</span><span class="level">LEVEL '+l+' / '+n.max+'</span><span class="cost">'+(l===n.max?'MAXED':unlocked?cost.toLocaleString('en-GB')+' GOLD':'LOCKED')+'</span>';
+ }
+ const detail=$('shipdetail');
+ if(selectedShip==='core'){
+  const spent=(save.legacySpent.core||[]);const last=spent.length?spent[spent.length-1]:2*(save.core-1)+3;
+  detail.innerHTML='<h3>◆ CORE · Crate Density · Level '+save.core+'</h3><p>The heart of the research constellation. Each purchase adds +0.001 percentage points to ordinary crate spawn chance. No maximum level.</p><p>Next level: '+coreCost.toLocaleString('en-GB')+' gold.</p><p>Refund latest level: '+(save.core?Math.floor(last*500)/1000:0)+' gold.</p>';
+  const b=document.createElement('button');b.textContent='BUY CORE LEVEL';b.disabled=save.gold<coreCost;b.onclick=()=>buy('core');detail.appendChild(b);
+  const r=document.createElement('button');r.className='refund';r.textContent='REFUND LAST LEVEL (50%)';r.disabled=!save.core;r.onclick=()=>refundLegacy('core');detail.appendChild(r);return;
+ }
+ const isLuck=selectedShip.startsWith('l'),n=isLuck?LUCK_BY_ID[selectedShip]:SHIP_BY_ID[selectedShip],l=isLuck?luckLevel(n.id):shipLevel(n.id),unlocked=isLuck?luckUnlocked(n):shipUnlocked(n),cost=l<n.max?(isLuck?luckCost(n,l):shipCost(n,l)):0;
+ const paid=((isLuck?save.luckSpent:save.shipSpent)[n.id]||[]),refund=l?paid[l-1]??(isLuck?luckCost(n,l-1):shipCost(n,l-1)):0;
+ detail.innerHTML='<h3>'+n.name+' · Level '+l+'/'+n.max+'</h3><p>'+n.desc+'</p><p>Requires: '+(isLuck?(n.req.length?n.req.map(([id,v])=>LUCK_BY_ID[id].name+' Lv '+v).join(' + '):'Starting LUCK research'):shipRequirements(n))+'</p><p>'+(l>=n.max?'Fully upgraded.':'Next upgrade: '+cost.toLocaleString('en-GB')+' gold')+'</p><p>Refund latest level: '+Math.floor(refund*500)/1000+' gold (50% of original purchase price).</p>';
+ const buyBtn=document.createElement('button');buyBtn.textContent=l>=n.max?'MAX LEVEL':unlocked?'BUY LEVEL':'LOCKED';buyBtn.disabled=l>=n.max||!unlocked||save.gold<cost;buyBtn.onclick=()=>isLuck?purchaseLuck(n.id):purchaseShip(n.id);detail.appendChild(buyBtn);
+ const refundBtn=document.createElement('button');refundBtn.className='refund';refundBtn.textContent='REFUND LAST LEVEL (50%)';refundBtn.disabled=!l||(isLuck?LUCK_RESEARCH.some(other=>other.req.some(([id,needed])=>id===n.id&&luckLevel(other.id)>0&&l-1<needed)):SHIP_RESEARCH.some(other=>other.req.some(([id,needed])=>id===n.id&&shipLevel(other.id)>0&&l-1<needed)));refundBtn.onclick=()=>isLuck?refundLuck(n.id):refundShip(n.id);detail.appendChild(refundBtn);
+}
+function purchaseShip(id){const n=SHIP_BY_ID[id],l=shipLevel(id);if(l>=n.max||!shipUnlocked(n))return;const cost=shipCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.shipLevels[id]=l+1;(save.shipSpent[id]??=[]).push(cost);persist();updateMenu()}
+function refundShip(id){const n=SHIP_BY_ID[id],l=shipLevel(id);if(!l)return;if(SHIP_RESEARCH.some(other=>other.req.some(([dep,needed])=>dep===id&&shipLevel(other.id)>0&&l-1<needed))){$('researchnote').textContent='Refund dependent upgrades first.';return}const cost=(save.shipSpent[id]||[]).pop()??shipCost(n,l-1);save.gold=floorGold(save.gold+Math.floor(cost*500)/1000);save.shipLevels[id]=l-1;persist();updateMenu()}
+let treePanX=20,treePanY=0,treeZoom=.75;
+function applyTreeView(){const w=$('shipworld');if(w)w.style.transform=`translate(${treePanX}px,${treePanY}px) scale(${treeZoom})`}
+function centerTree(){const vp=$('shipviewport');treeZoom=Math.min(.75,Math.max(.32,vp.clientWidth/1600));treePanX=vp.clientWidth/2-1350*treeZoom;treePanY=vp.clientHeight*.72-1790*treeZoom;applyTreeView()}
+const treeVP=$('shipviewport');let panPointer=null;
+treeVP.addEventListener('pointerdown',e=>{if(e.target.closest('.shipnode'))return;panPointer={id:e.pointerId,x:e.clientX,y:e.clientY};treeVP.setPointerCapture(e.pointerId);treeVP.classList.add('dragging')});
+treeVP.addEventListener('pointermove',e=>{if(!panPointer||e.pointerId!==panPointer.id)return;treePanX+=e.clientX-panPointer.x;treePanY+=e.clientY-panPointer.y;panPointer.x=e.clientX;panPointer.y=e.clientY;applyTreeView()});
+function endTreePan(e){if(panPointer&&e.pointerId===panPointer.id){panPointer=null;treeVP.classList.remove('dragging')}}
+treeVP.addEventListener('pointerup',endTreePan);treeVP.addEventListener('pointercancel',endTreePan);
+treeVP.addEventListener('wheel',e=>{e.preventDefault();const r=treeVP.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,old=treeZoom;treeZoom=Math.max(.2,Math.min(1.6,treeZoom*(e.deltaY<0?1.12:.89)));treePanX=x-(x-treePanX)*treeZoom/old;treePanY=y-(y-treePanY)*treeZoom/old;applyTreeView()},{passive:false});
+$('treeZoomIn').onclick=()=>{treeZoom=Math.min(1.6,treeZoom*1.2);applyTreeView()};$('treeZoomOut').onclick=()=>{treeZoom=Math.max(.2,treeZoom/1.2);applyTreeView()};$('treeReset').onclick=centerTree;
+addEventListener('resize',()=>{if($('menu').style.display!=='none')applyTreeView()});
+centerTree();updateMenu();
+
+function maxHull(){return 5+shipLevel("s01")+shipLevel("s09")}function shipScale(){return [1,.8,.6,.5][shipLevel("s15")]}
+const rand=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));let drillUsed=false,drillActive=false,drillTravel=0,drillPreviousRock=false,shields=0;let brakeTimer=0,halTimer=0;let goldenCache=null,goldenRocks=[],specialFormations=[],bronzeRocks=[],outposts=[],outpostBullets=[],streakCount=0,dedicationTriggered=false,dedicationClean=false,maxRunDistance=0,active=false,phase='collect',remaining=30,haul=0,hits=0,invuln=0,player={x:0,y:0,vx:0,vy:0},rocks=[],crates=[],particles=[],mouse={x:W/2,y:H/2-140},last=0,spawnClock=0,rockClock=0,rockChunks=new Set(),toastTime=0;
+const isMobile=matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if(isMobile){document.body.classList.add('mobile');$('controlhint').textContent='Drag joystick to accelerate · Use BRAKE button when equipped · HAL repairs hull automatically';}
+const joystick=$('joystick'),stick=$('stick');let joy={x:0,y:0,active:false,id:null};
+function joyMove(e){const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy;const max=48,len=Math.hypot(dx,dy);if(len>max){dx*=max/len;dy*=max/len}joy.x=dx/max;joy.y=dy/max;stick.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`}
+function joyStop(e){if(joy.id!==null&&e.pointerId!==joy.id)return;joy.active=false;joy.id=null;joy.x=0;joy.y=0;stick.style.transform='translate(-50%,-50%)'}
+joystick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;joy.active=true;joystick.setPointerCapture(e.pointerId);joyMove(e)});
+joystick.addEventListener('pointermove',e=>{if(joy.active&&e.pointerId===joy.id){e.preventDefault();joyMove(e)}});
+joystick.addEventListener('pointerup',joyStop);joystick.addEventListener('pointercancel',joyStop);
+const station={x:0,y:0,r:78};const SHIP=64;const PLAYER_SIZE=48;function spawnRock(x,y){const mult=[1,2,3][Math.floor(Math.random()*3)],s=SHIP*mult;rocks.push({x,y,s,vx:rand(-22,22),vy:rand(-22,22),rot:rand(0,Math.PI*2)})}function spawnCrate(x,y){crates.push({x,y,rare:false,rot:rand(0,6.28)})}
+// Asteroids occupy persistent, seeded 520-unit chunks. Every nearby chunk is populated
+// immediately, so unlimited ship acceleration cannot outrun a timed spawn queue.
+const ROCK_CHUNK=520,ROCK_RADIUS=2;
+// The golden maze occupies about 405 units from its centre. Keep normal
+// asteroids outside a 550-unit exclusion circle, including their half-size.
+const GOLD_CLEAR_RADIUS=1050;
+function overlapsGoldenClearance(x,y,halfSize=0){
+ return specialFormations.some(f=>Math.hypot(x-f.x,y-f.y)<f.clearRadius+halfSize);
+}
+function keepRockOutsideGoldenZone(r){
+ const f=specialFormations.find(f=>Math.hypot(r.x-f.x,r.y-f.y)<f.clearRadius+r.s/2);if(!f)return;
+ const dx=r.x-f.x,dy=r.y-f.y;
+ const distance=Math.hypot(dx,dy),limit=f.clearRadius+r.s/2;
+ if(distance>=limit)return;
+ const nx=distance>0.001?dx/distance:1,ny=distance>0.001?dy/distance:0;
+ r.x=f.x+nx*(limit+0.5);
+ r.y=f.y+ny*(limit+0.5);
+ // Reflect only the inward component; preserve tangential movement.
+ const inward=r.vx*nx+r.vy*ny;
+ if(inward<0){r.vx-=1.8*inward*nx;r.vy-=1.8*inward*ny;}
+}
+function chunkRandom(cx,cy){let seed=(Math.imul(cx,73856093)^Math.imul(cy,19349663)^0x51f15e5d)>>>0;return ()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}}
+function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=7+Math.floor(random()*4);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*3));const x=(cx+0.08+random()*.84)*ROCK_CHUNK,y=(cy+0.08+random()*.84)*ROCK_CHUNK;if(Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2))continue;rocks.push({x,y,s,vx:(random()-.5)*44,vy:(random()-.5)*44,rot:random()*6.28,chunk:key})}}
+function maintainRockField(x,y){const cx=Math.floor(x/ROCK_CHUNK),cy=Math.floor(y/ROCK_CHUNK);for(let ix=cx-ROCK_RADIUS;ix<=cx+ROCK_RADIUS;ix++)for(let iy=cy-ROCK_RADIUS;iy<=cy+ROCK_RADIUS;iy++)ensureRockChunk(ix,iy)}
+function refreshRockField(oldX,oldY){const travel=Math.hypot(player.x-oldX,player.y-oldY);const steps=Math.min(48,Math.max(1,Math.ceil(travel/(ROCK_CHUNK*.55))));for(let i=0;i<=steps;i++){const t=i/steps;maintainRockField(oldX+(player.x-oldX)*t,oldY+(player.y-oldY)*t)}const cx=Math.floor(player.x/ROCK_CHUNK),cy=Math.floor(player.y/ROCK_CHUNK);rocks=rocks.filter(r=>{const parts=r.chunk.split(',');return Math.abs(+parts[0]-cx)<=ROCK_RADIUS+1&&Math.abs(+parts[1]-cy)<=ROCK_RADIUS+1});rockChunks=new Set(rocks.map(r=>r.chunk))}
+
+// V1.3: 56px-wide, connected, irregular golden asteroid labyrinth.
+// Each occupied cell is a 56px square; every empty cell is a 56px corridor.
+// Generate connected corridors FIRST, then turn remaining cells into rocks.
+function makeGoldenCache(x,y,type='golden'){
+ const formation={x,y,type,clearRadius:GOLD_CLEAR_RADIUS,crates:[]};specialFormations.push(formation);
+ if(type==='golden'&&!goldenCache)goldenCache=formation;
+ const N=23,CELL=56,mid=11;
+ const wall=Array.from({length:N},()=>Array(N).fill(true));
+ const visited=Array.from({length:N},()=>Array(N).fill(false));
+ // First carve real, connected, ship-width passages. Decoration cannot block them.
+ const stack=[[1,1]];visited[1][1]=true;wall[1][1]=false;
+ while(stack.length){
+  const [cx,cy]=stack[stack.length-1];
+  const choices=[[2,0],[-2,0],[0,2],[0,-2]].filter(([dx,dy])=>{
+   const nx=cx+dx,ny=cy+dy;
+   return nx>0&&ny>0&&nx<N-1&&ny<N-1&&!visited[ny][nx];
+  });
+  if(!choices.length){stack.pop();continue;}
+  const [dx,dy]=choices[Math.floor(Math.random()*choices.length)];
+  wall[cy+dy/2][cx+dx/2]=false;
+  wall[cy+dy][cx+dx]=false;
+  visited[cy+dy][cx+dx]=true;stack.push([cx+dx,cy+dy]);
+ }
+ // Extra crossings make this a natural asteroid field, not a single-solution labyrinth.
+ for(let i=0;i<48;i++){
+  const cx=1+Math.floor(Math.random()*10)*2,cy=1+Math.floor(Math.random()*10)*2;
+  const [dx,dy]=Math.random()<.5?[1,0]:[0,1];
+  if(cx+dx<N-1&&cy+dy<N-1)wall[cy+dy][cx+dx]=false;
+ }
+ for(let yy=mid-1;yy<=mid+1;yy++)for(let xx=mid-1;xx<=mid+1;xx++)wall[yy][xx]=false;
+ // A lumpy, roughly circular silhouette: no obvious perfect circle up close.
+ const phase=Math.random()*Math.PI*2;
+ const lobes=Array.from({length:12},()=>Math.random()*2-1);
+ const limitAt=a=>{
+  const t=((a-phase+Math.PI*2)%(Math.PI*2))/(Math.PI*2)*12;
+  const i=Math.floor(t),f=t-i,blend=f*f*(3-2*f);
+  return 9.1+lobes[i]*(1-blend)*1.6+lobes[(i+1)%12]*blend*1.6
+    +.48*Math.sin(5*a+phase);
+ };
+ for(let yy=0;yy<N;yy++)for(let xx=0;xx<N;xx++){
+  const dx=xx-mid,dy=yy-mid;
+  const distance=Math.hypot(dx,dy),angle=Math.atan2(dy,dx);
+  if(distance>limitAt(angle))wall[yy][xx]=false;
+ }
+ // Force eight winding routes from the outside into the connected carved network.
+ // Each starts at an odd-indexed room, so it always joins the maze.
+ for(const k of [3,7,15,19]){
+  for(let yy=0;yy<=1;yy++)wall[yy][k]=false;
+  for(let yy=N-2;yy<N;yy++)wall[yy][k]=false;
+  for(let xx=0;xx<=1;xx++)wall[k][xx]=false;
+  for(let xx=N-2;xx<N;xx++)wall[k][xx]=false;
+ }
+ // The corridor mask is only a hidden safety constraint, NOT a visible tile map.
+ // Fill solid regions with irregularly sized, off-centre asteroid clumps. Every
+ // square stays entirely inside its allocated solid cells, preserving 56px routes.
+ const used=Array.from({length:N},()=>Array(N).fill(false));
+ const blocks=[];
+ const add=(bx,by,size)=>blocks.push({x:bx,y:by,s:size,vx:0,vy:0,golden:true});
+ // Place the largest rocks first at random positions, not in row-major order.
+ const cells=[];
+ for(let yy=0;yy<N;yy++)for(let xx=0;xx<N;xx++)if(wall[yy][xx])cells.push([xx,yy]);
+ for(let i=cells.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
+ for(const [xx,yy] of cells){
+  if(used[yy][xx])continue;
+  let span=1;
+  // A few big monoliths among lots of medium and tiny pieces.
+  for(const candidate of [3,2]){
+   if(Math.random()>(candidate===3?.19:.56)||xx+candidate>N||yy+candidate>N)continue;
+   let fits=true;
+   for(let j=0;j<candidate;j++)for(let i=0;i<candidate;i++)if(!wall[yy+j][xx+i]||used[yy+j][xx+i])fits=false;
+   if(fits){span=candidate;break;}
+  }
+  for(let j=0;j<span;j++)for(let i=0;i<span;i++)used[yy+j][xx+i]=true;
+  const left=x+(xx-mid-.5)*CELL,top=y+(yy-mid-.5)*CELL;
+  const region=span*CELL;
+  if(span>1){
+   // Oversized blocks vary continuously, with room for asymmetric satellite rocks.
+   const size=region*(.70+Math.random()*.30);
+   const inset=region-size;
+   add(left+size/2+Math.random()*inset,top+size/2+Math.random()*inset,size);
+   // Place small chunks only in the unused corners of the reserved solid area.
+   for(let k=0;k<7;k++){
+    const small=12+Math.random()*25;
+    const px=left+small/2+Math.random()*(region-small);
+    const py=top+small/2+Math.random()*(region-small);
+    if(blocks.some(r=>Math.abs(px-r.x)<(small+r.s)/2+3&&Math.abs(py-r.y)<(small+r.s)/2+3))continue;
+    add(px,py,small);
+   }
+  }else{
+   // Single solid cells become differently sized boulders, broken-up pairs,
+   // or irregular groups of fragments, instead of identical 56px squares.
+   const style=Math.random();
+   if(style<.33){
+    const size=35+Math.random()*21;
+    add(left+size/2+Math.random()*(CELL-size),top+size/2+Math.random()*(CELL-size),size);
+   }else{
+    const count=style<.78?2:3;
+    const fragments=[];
+    for(let k=0;k<count;k++){
+     const size=15+Math.random()*19;
+     for(let attempt=0;attempt<18;attempt++){
+      const px=left+size/2+Math.random()*(CELL-size),py=top+size/2+Math.random()*(CELL-size);
+      if(fragments.every(r=>Math.abs(px-r.x)>=(size+r.s)/2+2||Math.abs(py-r.y)>=(size+r.s)/2+2)){
+       fragments.push({x:px,y:py,s:size});add(px,py,size);break;
+      }
+     }
+    }
+   }
+  }
+ }
+ for(const b of blocks){b.formationType=type;goldenRocks.push(b)}
+ const count=type==='golden'?3+luckLevel('l07'):type==='obsidian'?5+luckLevel('l10'):10+2*luckLevel('l13');
+ const value=type==='golden'?12+2*luckLevel('l06'):type==='obsidian'?30+5*luckLevel('l09'):100+25*luckLevel('l12');
+ const corridors=[];for(let yy=1;yy<N-1;yy++)for(let xx=1;xx<N-1;xx++)if(!wall[yy][xx])corridors.push([xx,yy]);
+ for(let i=corridors.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[corridors[i],corridors[j]]=[corridors[j],corridors[i]]}
+ for(let i=0;i<count&&i<corridors.length;i++){const [cx,cy]=corridors[i];const crate={x:x+(cx-mid)*CELL,y:y+(cy-mid)*CELL,rare:true,kind:type,value,rot:0,formation:true};formation.crates.push(crate);crates.push(crate)}
+}
+function reflectFromGold(r){
+ if(!goldenCache||goldenCache.collected)return;
+ // Circle-vs-AABB resolution approximates square-rock interactions efficiently.
+ for(const g of goldenRocks){
+  if(Math.abs(g.x-r.x)>g.s+r.s||Math.abs(g.y-r.y)>g.s+r.s)continue;
+  const half=(r.s+g.s)/2,dx=r.x-g.x,dy=r.y-g.y;
+  if(Math.abs(dx)>=half||Math.abs(dy)>=half)continue;
+  const px=half-Math.abs(dx),py=half-Math.abs(dy);
+  if(px<py){const side=dx>=0?1:-1;r.x+=side*(px+.5);r.vx=side*Math.max(18,Math.abs(r.vx));}
+  else{const side=dy>=0?1:-1;r.y+=side*(py+.5);r.vy=side*Math.max(18,Math.abs(r.vy));}
+ }
+}
+function spawnAround(radiusMin,radiusMax,fn){const a=rand(0,Math.PI*2),r=rand(radiusMin,radiusMax);fn(player.x+Math.cos(a)*r,player.y+Math.sin(a)*r)}
+function generateSpecialFormations(){
+ goldenCache=null;goldenRocks=[];specialFormations=[];
+ const types=[['golden',1+luckLevel('l05'),3000],['obsidian',luckLevel('l08'),10000],['magma',luckLevel('l11'),20000]];
+ for(const [type,count,dist] of types){const offset=Math.random()*Math.PI*2;for(let i=0;i<count;i++){
+ const a=offset+i*Math.PI*2/count+(Math.random()-.5)*.12;makeGoldenCache(Math.cos(a)*dist,Math.sin(a)*dist,type)
+ }}
+}
+// A formation is cleared only when every valuable crate originally placed inside it has been collected.
+function formationCleared(f){return f.crates.every(c=>!crates.includes(c))}
+function trackerReadout(type){
+ const candidates=specialFormations.filter(f=>f.type===type&&!formationCleared(f))
+  .map(f=>({f,d:Math.hypot(f.x-player.x,f.y-player.y)})).sort((a,b)=>a.d-b.d);
+ if(!candidates.length)return 'CLEARED / NONE';
+ // The formation positions may be equally distant at the station.
+ if(candidates.length>1&&Math.abs(candidates[0].d-candidates[1].d)<1)return 'Many Close!';
+ return Math.round(candidates[0].d).toLocaleString('en-GB')+' units';
+}
+function updateTrackerHUD(){
+ const el=$('trackerHUD');
+ if(equippedTrackerSlot()<0){el.style.display='none';return}
+ el.style.display='block';
+ el.innerHTML='<strong>◎ ASTEROID TRACKER</strong><div style="color:#ffd27c">GOLDEN · '+trackerReadout('golden')+'</div><div style="color:#c9a5ff">OBSIDIAN · '+trackerReadout('obsidian')+'</div><div style="color:#ff987b">MAGMA · '+trackerReadout('magma')+'</div>';
+}
+function bronzeChance(){return .12*luckLevel('l14')/20}
+function siphonChance(){const l=luckLevel('l03');return l?l===10?.75:(.08+(l-1)*.075):0}
+function collectCrate(c){let value=c.value||1;if(streakCount>=15&&Math.random()<siphonChance())value*=3;haul+=value;streakCount++;if(c.rare)notify(c.kind.toUpperCase()+' CRATE +'+value+' GOLD')}
+// Hostile outposts: deterministic spatial placement, minimum 2,000 units apart.
+// Each 2,400-unit cell gets at most one candidate. A candidate only wins when
+// it has the smallest deterministic priority among overlapping neighbours.
+// This lets the field extend indefinitely without storing an enormous map.
+const OUTPOST_CELL=2400,OUTPOST_GAP=2000,OUTPOST_RANGE=500;
+const OUTPOST_BULLET_SPEED=205,OUTPOST_FIRE_INTERVAL=1/3;
+const outpostCells=new Map();
+function outpostCandidate(cx,cy){
+ const key=cx+','+cy;
+ if(outpostCells.has(key))return outpostCells.get(key);
+ const rnd=chunkRandom(cx+3107,cy-8241);
+ const exists=rnd()<.82;
+ const obj=exists?{x:(cx+.20+rnd()*.60)*OUTPOST_CELL,y:(cy+.20+rnd()*.60)*OUTPOST_CELL,priority:rnd(),key,active:true,cooldown:0}:null;
+ outpostCells.set(key,obj);return obj;
+}
+function validOutpost(cx,cy){
+ const candidate=outpostCandidate(cx,cy);if(!candidate)return null;
+ if(Math.hypot(candidate.x,candidate.y)<1100)return null;
+ for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){
+  if(!ox&&!oy)continue;
+  const other=outpostCandidate(cx+ox,cy+oy);
+  if(other&&Math.hypot(other.x-candidate.x,other.y-candidate.y)<OUTPOST_GAP){
+   if(other.priority<candidate.priority||(other.priority===candidate.priority&&other.key<candidate.key))return null;
+  }
+ }
+ return candidate;
+}
+const disabledOutpostKeys=new Set();
+function updateOutpostField(){
+ const cx=Math.floor(player.x/OUTPOST_CELL),cy=Math.floor(player.y/OUTPOST_CELL);
+ outposts=[];
+ for(let x=cx-1;x<=cx+1;x++)for(let y=cy-1;y<=cy+1;y++){
+  const outpost=validOutpost(x,y);
+  if(outpost){outpost.active=!disabledOutpostKeys.has(outpost.key);outposts.push(outpost)}
+ }
+}
+function outpostHit(){
+ if(invuln>0)return;
+ invuln=1.3;
+ if(shields>0){shields--;notify('SHIELD ABSORBED OUTPOST SHOT!');return}
+ hits++;streakCount=0;
+ if(dedicationTriggered)dedicationClean=false;
+ if(hits>=maxHull()){finish(false,'SHIP DESTROYED');return}
+ notify('OUTPOST SHOT! '+(maxHull()-hits)+' HULL REMAINING');
+}
+function updateOutposts(dt,oldX,oldY){
+ updateOutpostField();
+ for(const o of outposts){
+  if(!o.active)continue;
+  // Swept ship-vs-square collision: fast ships cannot skip over the outpost.
+  const vx=player.x-oldX,vy=player.y-oldY;
+  const t=clamp(((o.x-oldX)*vx+(o.y-oldY)*vy)/(vx*vx+vy*vy||1),0,1);
+  const px=oldX+vx*t,py=oldY+vy*t;
+  if(Math.abs(px-o.x)<29+17*shipScale()&&Math.abs(py-o.y)<29+17*shipScale()){
+   o.active=false;disabledOutpostKeys.add(o.key);notify('OUTPOST DISABLED!');continue;
+  }
+  const d=Math.hypot(player.x-o.x,player.y-o.y);
+  if(d>OUTPOST_RANGE){o.cooldown=0;continue}
+  o.cooldown-=dt;
+  while(o.cooldown<=0){
+   const angle=Math.atan2(player.y-o.y,player.x-o.x);
+   outpostBullets.push({x:o.x,y:o.y,vx:Math.cos(angle)*OUTPOST_BULLET_SPEED,vy:Math.sin(angle)*OUTPOST_BULLET_SPEED});
+   o.cooldown+=OUTPOST_FIRE_INTERVAL;
+  }
+ }
+ const halfW=W/2,halfH=H/2;
+ for(let i=outpostBullets.length-1;i>=0;i--){
+  const b=outpostBullets[i],beforeX=b.x,beforeY=b.y;
+  b.x+=b.vx*dt;b.y+=b.vy*dt;
+  // A bullet is independent of its outpost after firing and passes through asteroids.
+  // Remove it only after leaving the visible screen.
+  if(Math.abs(b.x-player.x)>halfW+16||Math.abs(b.y-player.y)>halfH+16){outpostBullets.splice(i,1);continue}
+  const dx=b.x-beforeX,dy=b.y-beforeY;
+  const t=clamp(((player.x-beforeX)*dx+(player.y-beforeY)*dy)/(dx*dx+dy*dy||1),0,1);
+  if(Math.hypot(beforeX+dx*t-player.x,beforeY+dy*t-player.y)<17*shipScale()+7){
+   outpostBullets.splice(i,1);outpostHit();if(!active)return;
+  }
+ }
+}
+function begin(){active=true;brakeTimer=0;halTimer=0;phase='collect';remaining=30+save.fuel*.25+shipLevel("s04")*5;haul=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel("s13");player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;generateSpecialFormations();particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
+function activateBrake(){if(!active||equippedBrakeSlot()<0||brakeTimer>0)return;player.vx=0;player.vy=0;brakeTimer=brakeCooldown();notify('EMERGENCY BRAKE — VELOCITY RESET!')}
+addEventListener('keydown',e=>{if(!active||e.repeat||e.altKey||e.ctrlKey||e.metaKey||!/^\d$/.test(e.key))return;const slot=e.key==='0'?9:Number(e.key)-1;if(slot===equippedBrakeSlot()){e.preventDefault();activateBrake()}});
+$('brakeMobile').onclick=activateBrake;$('launch').onclick=begin;$('abort').onclick=()=>finish(false,'RUN ABORTED');$('backmenu').onclick=()=>{$('result').style.display='none';$('game').style.display='none';$('menu').style.display='block';updateMenu()};
+if(!isMobile){cv.addEventListener('pointermove',e=>{mouse.x=e.clientX;mouse.y=e.clientY});cv.addEventListener('pointerdown',e=>{mouse.x=e.clientX;mouse.y=e.clientY})}
+function finish(success,title){
+ if(!active)return;
+ active=false;
+ const distanceMultiplier=Math.max(1,maxRunDistance/1000);
+ const hullMultiplier=save.hullbonus?1+(maxHull()-hits)*0.1:1;
+ const dedicationGold=success&&dedicationTriggered&&dedicationClean?5:0;
+ const banked=success?floorGold(haul*distanceMultiplier*hullMultiplier+dedicationGold):0;
+ if(success){save.gold=floorGold(save.gold+banked);persist()}
+ $('resulttitle').textContent=title;
+ $('resulttext').textContent=success
+  ?`Collected ${haul} gold × ${distanceMultiplier.toFixed(3)} distance${save.hullbonus?` × ${hullMultiplier.toFixed(1)} hull`:''} ${dedicationGold?' + 5 Dedicating Myself':''} = ${goldText(banked)} banked gold. Furthest distance: ${Math.floor(maxRunDistance)}. Total balance: ${goldText(save.gold)} gold.`
+  :`You lost ${haul} unbanked gold. Furthest distance: ${Math.floor(maxRunDistance)} (×${distanceMultiplier.toFixed(3)}). Your previous research and banked gold are safe.`;
+ $('result').style.display='flex';updateMenu();
+}
+function notify(s){$('toast').textContent=s;$('toast').style.display='block';toastTime=2.5}
+function update(dt){brakeTimer=Math.max(0,brakeTimer-dt);if(shipLevel('s10')>0){halTimer+=dt;const interval=60-shipLevel('s14');while(halTimer>=interval){halTimer-=interval;if(hits>0){hits--;notify('HAL REPAIRED 1 HULL · '+(maxHull()-hits)+' REMAINING')}}}remaining-=dt;if(remaining<=0){if(phase==='collect'){phase='return';remaining=45+save.returnfuel*.25+shipLevel("s05")*5;drillUsed=false;drillActive=false;notify('COLLECTION OVER — RETURN TO STATION!')}else{finish(false,'FUEL EXHAUSTED');return}}let dx=isMobile?joy.x:mouse.x-W/2,dy=isMobile?joy.y:mouse.y-H/2,mag=Math.hypot(dx,dy);if(mag>(isMobile?0.08:8)){const acc=105*(1+save.speed*.1);player.vx+=dx/mag*acc*dt;player.vy+=dy/mag*acc*dt}// No speed cap: aligned thrust never loses acceleration to drag.
+// Gentle damping only while coasting or changing direction makes braking manageable.
+const moving=mag>(isMobile?0.08:8);
+const velocity=Math.hypot(player.vx,player.vy);
+const alignment=moving&&velocity>0?(dx*player.vx+dy*player.vy)/(mag*velocity):0;
+const dampFactor=1+shipLevel("s03")*.05+shipLevel("s11")*.05;const damping=(!moving?0.85:0.45*Math.max(0,1-alignment))*dampFactor;
+const drag=Math.exp(-damping*dt);player.vx*=drag;player.vy*=drag;const oldX=player.x,oldY=player.y;player.x+=player.vx*dt;player.y+=player.vy*dt;maxRunDistance=Math.max(maxRunDistance,Math.hypot(player.x,player.y));invuln=Math.max(0,invuln-dt);
+// Baseline chance 12% per 0.16s spawn check; core adds 0.01 percentage points per level.
+spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;if(Math.random()<.12+save.core*.00001+luckLevel('l04')*.00005&&crates.length<3000)spawnAround(350,1250,(x,y)=>{
+ if(overlapsGoldenClearance(x,y,20))return;
+ const cluster=Math.random()<Math.min(1,luckLevel('l01')*.01);
+ const count=cluster?1+luckLevel('l02'):1;
+ for(let j=0;j<count;j++){const a=Math.random()*6.283,r=j?Math.sqrt(Math.random())*Math.min(200,30+count*5):0;spawnCrate(x+Math.cos(a)*r,y+Math.sin(a)*r)}
+ });
+ if(luckLevel('l14')>0&&Math.random()<bronzeChance()&&bronzeRocks.length<60)spawnAround(500,1450,(x,y)=>{
+ if(overlapsGoldenClearance(x,y,60))return;
+ const a=Math.random()*Math.PI*2,spd=rand(140,270);
+ bronzeRocks.push({x,y,s:60,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,bronze:true})
+ })}refreshRockField(oldX,oldY);
+for(const r of rocks){r.x+=r.vx*dt;r.y+=r.vy*dt;keepRockOutsideGoldenZone(r)}crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
+ for(const b of bronzeRocks){b.x+=b.vx*dt;b.y+=b.vy*dt;if(Math.hypot(b.x-player.x,b.y-player.y)<=100)haul+=dt*(3+luckLevel('l15')*.1)}
+ bronzeRocks=bronzeRocks.filter(b=>Math.abs(b.x-player.x)<2300&&Math.abs(b.y-player.y)<2300);
+for(let i=crates.length-1;i>=0;i--){const c=crates[i];if(Math.abs(c.x-player.x)<37&&Math.abs(c.y-player.y)<37){collectCrate(c);crates.splice(i,1)}}
+
+const allRocks=[...rocks,...goldenRocks.filter(r=>Math.abs(r.x-player.x)<r.s/2+60&&Math.abs(r.y-player.y)<r.s/2+60),...bronzeRocks];const radius=17*shipScale();
+const touching=allRocks.filter(r=>{const nearX=Math.max(r.x-r.s/2,Math.min(player.x,r.x+r.s/2)),nearY=Math.max(r.y-r.s/2,Math.min(player.y,r.y+r.s/2));return Math.hypot(player.x-nearX,player.y-nearY)<radius});
+const speedNow=Math.hypot(player.vx,player.vy);
+if(drillActive){drillTravel+=Math.hypot(player.x-oldX,player.y-oldY);if(!touching.length||drillTravel>=DRILL_DIST[shipLevel('s07')]){drillActive=false;notify('DRILL ENDED — CONTACT WITH OPEN SPACE OR MAX DISTANCE')} }
+else if(touching.length&&!drillUsed&&shipLevel('s07')>0&&speedNow>=Math.max(250,750*(1-shipLevel('s12')*.03))){drillUsed=true;drillActive=true;drillTravel=0;notify('DRILL ACTIVE — STAY INSIDE ROCK!')}
+else if(touching.length&&invuln<=0){const r=touching[0];invuln=1.3;if(shields>0){shields--;notify('SHIELD ABSORBED IMPACT!')}else{hits++;streakCount=0;if(dedicationTriggered)dedicationClean=false;if(hits>=maxHull()){finish(false,'SHIP DESTROYED');return}notify(`HULL HIT! ${maxHull()-hits} IMPACTS REMAINING`)}const knock=Math.max(0,1-shipLevel('s08')*.04);player.vx+=(player.x-r.x>=0?1:-1)*65*knock;player.vy+=(player.y-r.y>=0?1:-1)*65*knock;if(shipLevel('s06')>0){const list=r.bronze?bronzeRocks:r.golden?goldenRocks:rocks;const index=list.indexOf(r);if(index>=0)list.splice(index,1);haul+=shipLevel('s06');notify('ASTEROID DISINTEGRATED · +'+shipLevel('s06')+' GOLD')}}
+updateOutposts(dt,oldX,oldY);if(!active)return;
+// The rescue only triggers beyond 500 units, with <=5 seconds remaining and exactly one hull.
+if(phase==='return'&&remaining<=5&&remaining>0&&Math.hypot(player.x,player.y)>500&&maxHull()-hits===1&&save.dedicatingEquipped&&!dedicationTriggered){
+ dedicationTriggered=true;dedicationClean=true;hits--;notify('✦ DEDICATING MYSELF — +1 HULL! RETURN UNHARMED FOR +5 GOLD');
+}
+if(phase==='return'&&Math.hypot(player.x,player.y)<station.r){finish(true,'SALVAGE DELIVERED');return}toastTime-=dt;if(toastTime<=0)$('toast').style.display='none';$('brakeMobile').style.display=isMobile&&equippedBrakeSlot()>=0?'block':'none';$('brakeMobile').disabled=brakeTimer>0;$('brakeMobile').textContent=brakeTimer>0?'BRAKE '+Math.ceil(brakeTimer)+'s':'BRAKE';$('phase').textContent=(phase==='collect'?'SCAVENGING':'RETURN TO STATION')+(drillActive?' · DRILL '+Math.floor(DRILL_DIST[shipLevel('s07')]-drillTravel):'');$('phase').className=phase==='collect'?'':'warn';$('timer').textContent=Math.max(0,remaining).toFixed(1)+'s';$('hp').textContent=(shipLevel('s10')>0?'HAL '+Math.ceil((60-shipLevel('s14'))-halTimer)+'s · ':'')+'HULL '+ '◆'.repeat(Math.min(40,maxHull()-hits))+'◇'.repeat(Math.min(40,hits))+(shields?' 🛡'+shields:'');updateTrackerHUD();$('haul').textContent=goldText(haul)+' ◆ · STREAK '+streakCount;$('distance').textContent=Math.round(Math.hypot(player.x,player.y));$('maxdistance').textContent=Math.floor(maxRunDistance);$('distmult').textContent='×'+Math.max(1,maxRunDistance/1000).toFixed(3);const angle=Math.atan2(-player.y,-player.x)*180/Math.PI;$('direction').textContent=phase==='return'?`STATION ${Math.round(angle)}° from right`:'STATION ◉'}
+function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#040b1b';ctx.fillRect(0,0,W,H);const camX=player.x-W/2,camY=player.y-H/2;let gx=Math.floor(camX/110),gy=Math.floor(camY/110);for(let ix=gx;ix<gx+Math.ceil(W/110)+2;ix++)for(let iy=gy;iy<gy+Math.ceil(H/110)+2;iy++){let h=Math.abs((ix*73856093)^(iy*19349663))%100;if(h<43){ctx.fillStyle=h<6?'#7299b9':'#294565';ctx.fillRect(ix*110-camX+(h*17)%90,iy*110-camY+(h*11)%90,h<6?2:1,h<6?2:1)}}
+const sx=station.x-camX,sy=station.y-camY;ctx.save();ctx.translate(sx,sy);ctx.strokeStyle='#49dfeb';ctx.lineWidth=4;ctx.shadowColor='#42d5f4';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(0,0,station.r,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#183c5d';ctx.fillRect(-44,-44,88,88);ctx.fillStyle='#317e9d';ctx.fillRect(-30,-30,60,60);ctx.fillStyle='#86e5ed';ctx.fillRect(-13,-13,26,26);ctx.fillStyle='#d9fbff';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText('REFUEL',0,-94);ctx.restore();
+for(const c of crates){let x=c.x-camX,y=c.y-camY;if(x< -30||y< -30||x>W+30||y>H+30)continue;ctx.save();ctx.translate(x,y);ctx.fillStyle=c.kind==='magma'?'#ff6848':c.kind==='obsidian'?'#ad8de9':c.rare?'#ff9f43':'#e8ba36';ctx.shadowColor=c.kind==='magma'?'#ff4422':c.kind==='obsidian'?'#a48aff':c.rare?'#ffb84b':'#edcc55';ctx.shadowBlur=c.rare?20:8;const s=c.rare?29:22;ctx.fillRect(-s/2,-s/2,s,s);ctx.shadowBlur=0;ctx.strokeStyle='#7c571d';ctx.lineWidth=3;ctx.strokeRect(-s/2,-s/2,s,s);ctx.beginPath();ctx.moveTo(-s/2,0);ctx.lineTo(s/2,0);ctx.moveTo(0,-s/2);ctx.lineTo(0,s/2);ctx.stroke();ctx.restore()}
+// Golden asteroids are static obstacles and are drawn over the moving field.
+for(const r of goldenRocks){const x=r.x-camX,y=r.y-camY;if(x<-r.s||y<-r.s||x>W+r.s||y>H+r.s)continue;ctx.fillStyle=r.formationType==='magma'?'#7b342a':r.formationType==='obsidian'?'#38334e':'#a57b30';ctx.shadowColor=r.formationType==='magma'?'#f65c35':r.formationType==='obsidian'?'#9274c5':'#edb94b';ctx.shadowBlur=9;ctx.fillRect(x-r.s/2,y-r.s/2,r.s,r.s);ctx.shadowBlur=0;ctx.fillStyle=r.formationType==='magma'?'#c65a37':r.formationType==='obsidian'?'#696080':'#d6b65f';ctx.fillRect(x-r.s/2+5,y-r.s/2+5,r.s-10,7);ctx.fillStyle=r.formationType==='magma'?'#4c201c':r.formationType==='obsidian'?'#211e35':'#6f5225';ctx.fillRect(x-r.s/2,y+r.s/2-9,r.s,9);}
+for(const r of rocks){const x=r.x-camX,y=r.y-camY;if(x<-r.s||y<-r.s||x>W+r.s||y>H+r.s)continue;ctx.fillStyle='#737e8d';ctx.fillRect(x-r.s/2,y-r.s/2,r.s,r.s);ctx.fillStyle='#9ba5b0';ctx.fillRect(x-r.s/2+5,y-r.s/2+5,r.s-10,7);ctx.fillStyle='#424e61';ctx.fillRect(x-r.s/2,y+r.s/2-9,r.s,9);ctx.fillStyle='#657080';ctx.fillRect(x-r.s/2+15,y-r.s/2+19,Math.max(10,r.s*.16),Math.max(10,r.s*.16))}
+for(const b of bronzeRocks){const x=b.x-camX,y=b.y-camY;if(x<-80||y<-80||x>W+80||y>H+80)continue;ctx.save();ctx.translate(x,y);ctx.rotate(performance.now()*.0007);ctx.shadowColor='#d9894c';ctx.shadowBlur=15;ctx.fillStyle='#b86c3a';ctx.beginPath();for(let j=0;j<9;j++){const a=j*Math.PI*2/9,rr=b.s*.42*(.83+.13*Math.sin(j*17));if(j===0)ctx.moveTo(Math.cos(a)*rr,Math.sin(a)*rr);else ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}ctx.closePath();ctx.fill();ctx.strokeStyle='#f6bd7d';ctx.lineWidth=3;ctx.stroke();ctx.restore();if(Math.hypot(b.x-player.x,b.y-player.y)<100){ctx.strokeStyle='#e6a46a';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,100,0,Math.PI*2);ctx.stroke()}}
+// Hostile outposts are unmistakable red squares; disabled ones turn dark grey.
+for(const o of outposts){
+ const x=o.x-camX,y=o.y-camY;if(x<-70||y<-70||x>W+70||y>H+70)continue;
+ ctx.save();ctx.translate(x,y);
+ ctx.shadowColor=o.active?'#ff263d':'#556275';ctx.shadowBlur=o.active?22:0;
+ ctx.fillStyle=o.active?'#e9233d':'#394452';ctx.fillRect(-29,-29,58,58);
+ ctx.shadowBlur=0;ctx.lineWidth=4;ctx.strokeStyle=o.active?'#ff9aa4':'#74808b';ctx.strokeRect(-29,-29,58,58);
+ ctx.fillStyle=o.active?'#ffdf77':'#222b35';ctx.fillRect(-9,-9,18,18);
+ ctx.restore();
+}
+// Large luminous projectiles remain visible after their source is disabled.
+for(const b of outpostBullets){
+ const x=b.x-camX,y=b.y-camY;
+ ctx.save();ctx.shadowColor='#ffef39';ctx.shadowBlur=22;
+ ctx.fillStyle='#fff5a2';ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle='#ff413b';ctx.lineWidth=3;ctx.stroke();ctx.restore();
+}
+const angle=(isMobile?(Math.hypot(joy.x,joy.y)>0.08?Math.atan2(joy.y,joy.x):Math.hypot(player.vx,player.vy)>5?Math.atan2(player.vy,player.vx):-Math.PI/2):Math.atan2(mouse.y-H/2,mouse.x-W/2))+Math.PI/2;ctx.save();ctx.translate(W/2,H/2);ctx.rotate(angle);if(invuln<=0||Math.floor(invuln*10)%2===0){ctx.imageSmoothingEnabled=false;ctx.drawImage(shipImg,-PLAYER_SIZE*shipScale()/2,-PLAYER_SIZE*shipScale()/2,PLAYER_SIZE*shipScale(),PLAYER_SIZE*shipScale());ctx.fillStyle='#63dfff';ctx.shadowColor='#5ae9ff';ctx.shadowBlur=16;const flame=8+Math.random()*9;ctx.beginPath();ctx.moveTo(-4,18);ctx.lineTo(0,25+flame);ctx.lineTo(4,18);ctx.fill()}ctx.restore();
+// Each equipped tracker target has its own world-space direction marker.
+// The nearest UNCLEARED formation of each type is selected independently.
+if(equippedTrackerSlot()>=0){
+ const styles=[['golden','#ffdb72','GOLDEN'],['obsidian','#c49cff','OBSIDIAN'],['magma','#ff8664','MAGMA']];
+ for(let index=0;index<styles.length;index++){
+  const [type,color,label]=styles[index];
+  const targets=specialFormations.filter(f=>f.type===type&&!formationCleared(f))
+   .map(f=>({f,d:Math.hypot(f.x-player.x,f.y-player.y)})).sort((a,b)=>a.d-b.d);
+  if(!targets.length)continue;
+  const target=targets[0],dist=target.d;
+  const many=targets.length>1&&Math.abs(targets[1].d-dist)<1;
+  const a=Math.atan2(target.f.y-player.y,target.f.x-player.x);
+  // Three separate concentric indicator lanes prevent one marker hiding another.
+  const lane=Math.min(W,H)*(.27+index*.065);
+  const px=W/2+Math.cos(a)*lane,py=H/2+Math.sin(a)*lane;
+  ctx.save();ctx.translate(px,py);ctx.rotate(a);
+  ctx.shadowColor=color;ctx.shadowBlur=14;ctx.fillStyle=color;
+  ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-8,-9);ctx.lineTo(-5,0);ctx.lineTo(-8,9);ctx.closePath();ctx.fill();ctx.restore();
+  const text=label+' · '+(many?'Many Close!':Math.round(dist).toLocaleString('en-GB')+' units');
+  ctx.save();ctx.font='bold 12px system-ui';ctx.textAlign='center';
+  const textX=Math.max(95,Math.min(W-95,px)),textY=Math.max(52,Math.min(H-45,py-19));
+  const tw=ctx.measureText(text).width;
+  ctx.fillStyle='rgba(4,11,27,.84)';ctx.fillRect(textX-tw/2-7,textY-14,tw+14,20);
+  ctx.fillStyle=color;ctx.fillText(text,textX,textY);ctx.restore();
+ }
+}
+if(phase==='return'){let dx=sx-W/2,dy=sy-H/2,dist=Math.hypot(dx,dy);if(dist>110){const a=Math.atan2(dy,dx),px=W/2+Math.cos(a)*Math.min(W,H)*.35,py=H/2+Math.sin(a)*Math.min(W,H)*.35;ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.fillStyle='#6df7ed';ctx.shadowColor='#6df7ed';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-10,-10);ctx.lineTo(-6,0);ctx.lineTo(-10,10);ctx.fill();ctx.restore()}}}
+function loop(t){if(!active)return;const dt=Math.min((t-last)/1000,.04);last=t;update(dt);if(!active)return;draw();requestAnimationFrame(loop)}
+</script></body></html>
