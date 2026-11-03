@@ -634,7 +634,7 @@ function wreckAwardUpgrade(){const branches=[
 }
 function wreckTick(dt,oldX,oldY){
  const distanceFromStation=Math.hypot(player.x,player.y);const ring=distanceFromStation<10000?0:Math.floor((distanceFromStation-10000)/5000)+1;
- for(let i=0;i<=Math.min(ring+1,ring+2);i++)wreckGenerateRing(i);
+ for(let i=0;i<=ring;i++)wreckGenerateRing(i);
  for(const w of wrecks){
   if(w.destroyed)continue;
   // The wreck drifts at only 1.5 units/sec and rotates in 90-degree variants.
