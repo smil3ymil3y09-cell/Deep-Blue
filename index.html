@@ -718,17 +718,94 @@ function wreckTick(dt,oldX,oldY){
  }
 }
 function wreckDraw(camX,camY){
- for(const w of wrecks){if(w.destroyed||Math.abs(w.x-player.x)>WRECK_RADIUS+W||Math.abs(w.y-player.y)>WRECK_RADIUS+H)continue;
-  const a=w.orientation*Math.PI/2;ctx.save();ctx.translate(w.x-camX,w.y-camY);ctx.rotate(a);
-  ctx.fillStyle='#102238';ctx.strokeStyle='#294963';ctx.lineWidth=3;
-  ctx.fillRect(-3.2*WRECK_TILE,-3.2*WRECK_TILE,6.4*WRECK_TILE,6.4*WRECK_TILE);
-  for(const [x,y] of w.walls){const px=x*WRECK_TILE,py=y*WRECK_TILE;ctx.fillStyle=w.armed?'#8e3540':'#2e4057';ctx.fillRect(px-28,py-28,56,56);ctx.fillStyle='#64778a';ctx.fillRect(px-25,py-25,50,7);ctx.strokeRect(px-27,py-27,54,54)}
-  for(const d of w.debris||[]){ctx.save();ctx.translate(d.x*56+d.ox,d.y*56+d.oy);ctx.rotate(d.rot);ctx.fillStyle='#495464';ctx.fillRect(-10,-6,20,12);ctx.fillStyle='#81909a';ctx.fillRect(-8,-5,11,3);ctx.restore()}
-  for(const g of w.gold)if(!g.taken){ctx.fillStyle='#aa4840';ctx.fillRect(g.x*56-21,g.y*56-21,42,42);ctx.fillStyle='#f4c66a';ctx.fillRect(g.x*56-12,g.y*56-12,24,24)}
-  for(const s of w.scrap)if(!s.taken){ctx.fillStyle='#986a43';ctx.fillRect(s.x*56-21,s.y*56-21,42,42);ctx.fillStyle='#d9b68a';ctx.fillRect(s.x*56-9,s.y*56-9,18,18)}
-  for(const core of w.cores)if(!core.taken){ctx.fillStyle='#1d79ba';ctx.shadowColor='#5fdcff';ctx.shadowBlur=18;ctx.fillRect(core.x*56-22,core.y*56-22,44,44);ctx.shadowBlur=0;ctx.fillStyle='#b6f5ff';ctx.fillRect(core.x*56-9,core.y*56-9,18,18)}
-  if(w.armed){ctx.fillStyle='#ff8585';ctx.font='bold 27px system-ui';ctx.textAlign='center';ctx.fillText('SELF-DESTRUCT '+Math.max(0,w.countdown).toFixed(1)+'s',0,-11*56)}
-  ctx.restore()
+ for(const w of wrecks){
+  if(w.destroyed||Math.abs(w.x-player.x)>WRECK_RADIUS+W||Math.abs(w.y-player.y)>WRECK_RADIUS+H)continue;
+  const t=WRECK_TILE,a=w.orientation*Math.PI/2;
+  ctx.save();ctx.translate(w.x-camX,w.y-camY);ctx.rotate(a);
+  const wallSet=new Set(w.walls.map(([x,y])=>x+','+y)),isWall=(x,y)=>wallSet.has(x+','+y);
+  // An irregular, continuous ship deck, following the four-armed silhouette.
+  // Crucially this is VISUAL ONLY: the hand-traced wall collision stays intact.
+  ctx.save();
+  for(let y=-13;y<=12;y++)for(let x=-14;x<=11;x++){
+   const spine=Math.abs(x)<=2&&Math.abs(y)<=12;
+   const middle=Math.abs(x)<=5&&Math.abs(y)<=5;
+   const wing=Math.abs(y)<=Math.max(0,3-Math.floor(Math.abs(x)/5))&&x>=-14&&x<=11;
+   if(!spine&&!middle&&!wing)continue;
+   const px=x*t-t/2,py=y*t-t/2,check=(Math.abs(x*13+y*7)%5);
+   ctx.fillStyle=check===0?'#182b3b':'#152635';ctx.fillRect(px,py,t,t);
+   ctx.strokeStyle='rgba(85,123,144,.18)';ctx.lineWidth=1;
+   ctx.strokeRect(px+2,py+2,t-4,t-4);
+   if(check===0){ctx.fillStyle='rgba(98,148,169,.13)';ctx.fillRect(px+7,py+7,t-14,3)}
+  }
+  ctx.restore();
+  // Structural ribs, battered armor plating, recessed panel seams and bolts.
+  for(const [x,y] of w.walls){
+   const px=x*t-t/2,py=y*t-t/2;
+   ctx.fillStyle='#08131f';ctx.fillRect(px-3,py-3,t+6,t+6);
+   ctx.fillStyle=w.armed?'#71343d':'#354c60';ctx.fillRect(px+2,py+2,t-4,t-4);
+   ctx.fillStyle='#4e6c80';ctx.fillRect(px+5,py+5,t-10,7);
+   ctx.fillStyle='#24394c';ctx.fillRect(px+6,py+16,t-12,t-23);
+   ctx.fillStyle='rgba(165,196,206,.36)';ctx.fillRect(px+8,py+18,t-16,2);
+   ctx.fillStyle='#9db4bb';ctx.fillRect(px+8,py+8,4,4);ctx.fillRect(px+t-12,py+8,4,4);
+   ctx.fillStyle='#172635';ctx.fillRect(px+8,py+t-12,4,4);ctx.fillRect(px+t-12,py+t-12,4,4);
+   // Glowing strip along exposed outer edges gives the blocks a joined hull.
+   ctx.strokeStyle=w.armed?'rgba(255,100,108,.7)':'rgba(91,176,204,.55)';
+   ctx.lineWidth=2;ctx.beginPath();
+   if(!isWall(x,y-1)){ctx.moveTo(px+3,py+2);ctx.lineTo(px+t-3,py+2)}
+   if(!isWall(x,y+1)){ctx.moveTo(px+3,py+t-2);ctx.lineTo(px+t-3,py+t-2)}
+   if(!isWall(x-1,y)){ctx.moveTo(px+2,py+3);ctx.lineTo(px+2,py+t-3)}
+   if(!isWall(x+1,y)){ctx.moveTo(px+t-2,py+3);ctx.lineTo(px+t-2,py+t-3)}
+   ctx.stroke();
+  }
+  // Faded identification stripes and emergency guidance in the central deck.
+  ctx.save();ctx.globalAlpha=.7;
+  for(const y of [-4,4]){ctx.fillStyle='#b08b4d';ctx.fillRect(-13,y*t-3,26,6)}
+  ctx.textAlign='center';ctx.font='bold 13px monospace';ctx.fillStyle='#7b9fa9';
+  ctx.fillText('D E R E L I C T',0,-3*t);ctx.restore();
+  // Dim emergency lights: red when the two cores have armed self-destruction.
+  for(const [x,y] of [[-3,-3],[3,-3],[-3,3],[3,3],[0,-8],[0,8],[-9,0],[9,0]]){
+   const pulse=.55+.35*Math.sin(w.elapsed*3+x);
+   ctx.save();ctx.globalAlpha=pulse;ctx.fillStyle=w.armed?'#ff5363':'#d8a74d';
+   ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=12;ctx.fillRect(x*t-5,y*t-5,10,10);ctx.restore();
+  }
+  // Damaged plating and loose debris (still collidable and damaging).
+  for(const d of w.debris||[]){
+   ctx.save();ctx.translate(d.x*t+d.ox,d.y*t+d.oy);ctx.rotate(d.rot);
+   ctx.fillStyle='#0c1924';ctx.fillRect(-13,-9,26,18);
+   ctx.fillStyle='#667985';ctx.fillRect(-10,-7,20,12);
+   ctx.fillStyle='#b2a078';ctx.fillRect(-8,-5,11,3);ctx.restore();
+  }
+  // High-value cargo is recognisable as a sealed industrial container.
+  for(const g of w.gold)if(!g.taken){
+   const px=g.x*t,py=g.y*t;ctx.save();ctx.translate(px,py);
+   ctx.fillStyle='#351f25';ctx.fillRect(-23,-23,46,46);
+   ctx.fillStyle='#a34c47';ctx.fillRect(-20,-20,40,40);
+   ctx.strokeStyle='#e5a36b';ctx.lineWidth=3;ctx.strokeRect(-16,-16,32,32);
+   ctx.fillStyle='#f2c979';ctx.fillRect(-5,-13,10,26);ctx.fillRect(-13,-5,26,10);
+   ctx.restore();
+  }
+  for(const s of w.scrap)if(!s.taken){
+   ctx.save();ctx.translate(s.x*t,s.y*t);
+   ctx.fillStyle='#47301e';ctx.fillRect(-22,-22,44,44);
+   ctx.fillStyle='#a87949';ctx.fillRect(-18,-18,36,36);
+   ctx.strokeStyle='#e2bd86';ctx.lineWidth=3;ctx.strokeRect(-14,-14,28,28);
+   ctx.fillStyle='#f2d7a1';ctx.fillRect(-4,-11,8,22);ctx.restore();
+  }
+  for(const core of w.cores)if(!core.taken){
+   ctx.save();ctx.translate(core.x*t,core.y*t);
+   ctx.shadowColor='#4fd9ff';ctx.shadowBlur=20;
+   ctx.fillStyle='#173b57';ctx.fillRect(-23,-23,46,46);
+   ctx.fillStyle='#2f91bb';ctx.fillRect(-17,-17,34,34);
+   ctx.fillStyle='#c3f8ff';ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(12,0);ctx.lineTo(0,12);ctx.lineTo(-12,0);ctx.closePath();ctx.fill();
+   ctx.restore();
+  }
+  if(w.armed){
+   ctx.save();ctx.textAlign='center';ctx.font='bold 24px system-ui';
+   ctx.shadowColor='#ff454f';ctx.shadowBlur=14;ctx.fillStyle='#ffb0b4';
+   ctx.fillText('SELF-DESTRUCT '+Math.max(0,w.countdown).toFixed(1)+'s',0,-15*t);
+   ctx.restore();
+  }
+  ctx.restore();
  }
 }
 function wreckDodgeBlocked(){return wrecks.some(w=>wreckNearby(w,100)&&wreckInside(w,player.x,player.y))}
