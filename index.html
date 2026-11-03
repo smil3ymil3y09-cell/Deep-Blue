@@ -1187,11 +1187,22 @@ function biomeNoise(x,y,scale,seed){
  const a=biomeHash(ix,iy,seed),b=biomeHash(ix+1,iy,seed),d=biomeHash(ix,iy+1,seed),e=biomeHash(ix+1,iy+1,seed);
  return (a+(b-a)*s)*(1-t)+(d+(e-d)*s)*t;
 }
+// Continuous multi-cell sampling smooths the geographic contours, not merely the radar image.
+// Gaussian weights blend the biome ownership field before selecting the strongest region.
 function biomeAt(x,y){
  if(x*x+y*y<BIOME_SAFE*BIOME_SAFE)return 0;
  if(!withinWorld(x,y))return -1;
  if(!biomeGrid)return 0;
- return biomeGrid[Math.min(BIOME_SIDE-1,Math.max(0,Math.floor((y+BIOME_LIMIT)/BIOME_STEP)))*BIOME_SIDE+Math.min(BIOME_SIDE-1,Math.max(0,Math.floor((x+BIOME_LIMIT)/BIOME_STEP)))];
+ const gx=(x+BIOME_LIMIT)/BIOME_STEP-.5,gy=(y+BIOME_LIMIT)/BIOME_STEP-.5;
+ const ix=Math.floor(gx),iy=Math.floor(gy),weights=[0,0,0,0];
+ for(let yy=iy-2;yy<=iy+3;yy++)for(let xx=ix-2;xx<=ix+3;xx++){
+  if(xx<0||yy<0||xx>=BIOME_SIDE||yy>=BIOME_SIDE)continue;
+  const kind=biomeGrid[yy*BIOME_SIDE+xx];if(kind<0)continue;
+  const dx=(xx-gx)/1.15,dy=(yy-gy)/1.15;
+  weights[kind]+=Math.exp(-.5*(dx*dx+dy*dy));
+ }
+ let best=0;for(let k=1;k<4;k++)if(weights[k]>weights[best])best=k;
+ return best;
 }
 function generateBiomeMap(){
  const rng=wreckRandom((expeditionSeed^0xb10be777)>>>0);
@@ -1642,7 +1653,7 @@ function drawRadar(){
  ctx.save();ctx.translate(cx,cy);ctx.fillStyle='rgba(5,18,35,.91)';ctx.strokeStyle='#396c86';ctx.lineWidth=2;
  ctx.beginPath();ctx.arc(0,0,size/2,0,Math.PI*2);ctx.fill();ctx.stroke();
  ctx.save();ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.clip();
- if(biomeGrid){const tile=5;for(let yy=-r;yy<r;yy+=tile)for(let xx=-r;xx<r;xx+=tile){if(xx*xx+yy*yy>r*r)continue;const kind=biomeAt(player.x+(xx+tile/2)/r*range,player.y+(yy+tile/2)/r*range);if(kind!==0){ctx.globalAlpha=kind<0?.7:.38;ctx.fillStyle=kind<0?'#03030c':BIOME_COLORS[kind];ctx.fillRect(xx,yy,tile+1,tile+1)}}ctx.globalAlpha=1;}
+ if(biomeGrid){const tile=2;for(let yy=-r;yy<r;yy+=tile)for(let xx=-r;xx<r;xx+=tile){if(xx*xx+yy*yy>r*r)continue;const kind=biomeAt(player.x+(xx+tile/2)/r*range,player.y+(yy+tile/2)/r*range);if(kind!==0){ctx.globalAlpha=kind<0?.7:.38;ctx.fillStyle=kind<0?'#03030c':BIOME_COLORS[kind];ctx.fillRect(xx,yy,tile+1,tile+1)}}ctx.globalAlpha=1;}
  ctx.strokeStyle='rgba(91,159,180,.28)';ctx.lineWidth=1;
  for(const k of [.33,.66,1]){ctx.beginPath();ctx.arc(0,0,r*k,0,Math.PI*2);ctx.stroke()}
  ctx.beginPath();ctx.moveTo(-r,0);ctx.lineTo(r,0);ctx.moveTo(0,-r);ctx.lineTo(0,r);ctx.stroke();
