@@ -915,6 +915,7 @@ function stationGenerateBand(band){
 }
 function rockOverlapsStation(x,y,radius=0){
  for(const s of abandonedStations){
+  if(s.destroyed)continue;
   if(Math.abs(x-s.x)>2100+radius||Math.abs(y-s.y)>1250+radius)continue;
   const lx=(x-s.x)/STATION_TILE+STATION_W/2-.5,ly=(y-s.y)/STATION_TILE+STATION_H/2-.5;
   for(const [tx,ty] of STATION_SOLID.concat(STATION_DECK)){
@@ -932,6 +933,17 @@ function stationTick(dt,oldX,oldY){
  const dist=Math.hypot(player.x,player.y),band=dist<5000?0:Math.floor((dist-5000)/10000)+1;
  for(let b=0;b<=band;b++)stationGenerateBand(b);
  for(const s of abandonedStations){
+  if(s.destroyed)continue;
+  if(s.armed){
+   s.countdown-=dt;
+   if(s.countdown<=0){
+    s.destroyed=true;audioSound('death');
+    const blastRadius=2400;
+    if(Math.hypot(player.x-s.x,player.y-s.y)<blastRadius){finish(false,'ABANDONED STATION SELF-DESTRUCTION');return}
+    notify('STATION EXPLODED · ESCAPED THE BLAST');
+    continue
+   }
+  }
   if(Math.abs(s.x-player.x)>2400||Math.abs(s.y-player.y)>1600)continue;
   const distance=Math.hypot(player.x-oldX,player.y-oldY),steps=Math.min(110,Math.max(1,Math.ceil(distance/12)));
   let sx=oldX,sy=oldY,hit=false;
@@ -945,7 +957,7 @@ function stationTick(dt,oldX,oldY){
    if(kind==='debris')continue;
    else if(kind==='cargo'){item.taken=true;const value=100;haul+=value;notify('STATION CARGO · +'+value+' GOLD')}
    else if(kind==='scrap'){item.taken=true;save.scrap=(Number(save.scrap)||0)+25;persist();notify('STATION SALVAGE · +25 SCRAP')}
-   else if(kind==='core'){item.taken=true;wreckAwardUpgrade()}
+   else if(kind==='core'){item.taken=true;wreckAwardUpgrade();if(s.items.core.every(core=>core.taken)&&!s.armed){s.armed=true;s.countdown=35;notify('STATION SELF-DESTRUCT INITIATED · 35 SECONDS TO ESCAPE');audioSound('ability')}}
   }
   s.debrisClock=Math.max(0,(s.debrisClock||0)-dt);
  }
@@ -954,6 +966,7 @@ function stationTick(dt,oldX,oldY){
 // Asteroids collide with authored station wall tiles, not a circular barrier.
 function stationRockCollisions(){
  for(const s of abandonedStations){
+  if(s.destroyed)continue;
   if(Math.abs(s.x-player.x)>2600||Math.abs(s.y-player.y)>1800)continue;
   for(const rock of rocks){
    const radius=rock.s*.42;
@@ -984,6 +997,7 @@ function stationRockCollisions(){
 }
 function stationDraw(camX,camY){
  for(const s of abandonedStations){
+  if(s.destroyed)continue;
   if(Math.abs(s.x-player.x)>2500||Math.abs(s.y-player.y)>1700)continue;
   const t=STATION_TILE,ox=s.x-STATION_W/2*t-camX,oy=s.y-STATION_H/2*t-camY;
   ctx.save();
@@ -1030,11 +1044,18 @@ function stationDraw(camX,camY){
    ctx.restore()
   }
   for(const item of (STATION_ITEMS.damage||[])){const px=ox+(item.x+.5)*t,py=oy+(item.y+.5)*t;ctx.strokeStyle='#a95a75';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(px-13,py-12);ctx.lineTo(px+9,py+4);ctx.lineTo(px-5,py+15);ctx.stroke()}
+  if(s.armed){
+   ctx.save();ctx.textAlign='center';ctx.font='bold 24px system-ui';
+   ctx.shadowColor='#ff454f';ctx.shadowBlur=14;ctx.fillStyle='#ffb0b4';
+   ctx.fillText('STATION SELF-DESTRUCT '+Math.max(0,s.countdown).toFixed(1)+'s',s.x-camX,s.y-camY-STATION_H*t/2-35);
+   ctx.restore()
+  }
   ctx.restore()
  }
 }
 function stationTags(){
  for(const s of abandonedStations){
+  if(s.destroyed)continue;
   const d=Math.hypot(player.x-s.x,player.y-s.y);if(d>4000||stationInside(s,player.x,player.y))continue;
   const a=Math.atan2(s.y-player.y,s.x-player.x),x=Math.max(90,Math.min(W-90,W/2+Math.cos(a)*(W/2-100))),y=Math.max(72,Math.min(H-60,H/2+Math.sin(a)*(H/2-85)));
   ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.fillStyle='#bc79ff';ctx.shadowColor='#a75bff';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(14,0);ctx.lineTo(-7,-8);ctx.lineTo(-3,0);ctx.lineTo(-7,8);ctx.fill();ctx.restore();
