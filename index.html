@@ -564,6 +564,124 @@ joystick.addEventListener('pointerup',joyStop);joystick.addEventListener('pointe
 const station={x:0,y:0,r:78};const SHIP=64;const PLAYER_SIZE=48;function spawnRock(x,y){const mult=[1,2,3][Math.floor(Math.random()*3)],s=SHIP*mult;rocks.push({x,y,s,vx:rand(-22,22),vy:rand(-22,22),rot:rand(0,Math.PI*2)})}function spawnCrate(x,y){crates.push({x,y,rare:false,rot:rand(0,6.28)})}
 // Asteroids occupy persistent, seeded 520-unit chunks. Every nearby chunk is populated
 // immediately, so unlimited ship acceleration cannot outrun a timed spawn queue.
+
+/* DERELICT SHIPS: sketch-inspired modular wrecks, 56x56 tiles, run-seeded rings.
+   Five wrecks within 10,000 units; ten more in EACH subsequent 5,000-unit ring.
+   Only nearby rings are instantiated, so the unbounded world remains efficient. */
+const WRECK_TILE=56,WRECK_RADIUS=820,WRECK_ESCAPE=12;
+let wrecks=[],wreckRings=new Set(),wreckImpactClock=0;
+function wreckRandom(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
+function wreckMake(x,y,seed){
+ const rng=wreckRandom(seed),orientation=Math.floor(rng()*4),breach=Math.floor(rng()*4);
+ const walls=new Set(),gold=[],scrap=[],cores=[];
+ const put=(x,y)=>walls.add(x+','+y),del=(x,y)=>walls.delete(x+','+y);
+ // Symmetric four-point starship: tapered bow/stern, broad swept wings,
+ // armoured central core. Breach variant removes a different exterior wing.
+ for(const side of [-1,1]){
+  for(let y=3;y<=8;y++){put(side*2,y);if(y>=5)put(side*3,y)}
+  for(let y=3;y<=8;y++){put(side*2,-y);if(y>=5)put(side*3,-y)}
+  for(let x=3;x<=9;x++){const y=Math.max(1,Math.round(4-(x-3)*.48));put(side*x,y);put(side*x,-y)}
+  for(let y=-3;y<=3;y++){put(side*3,y);if(Math.abs(y)===3)put(side*2,y)}
+ }
+ for(let x=-2;x<=2;x++){put(x,-3);put(x,3)}
+ for(let y=-2;y<=2;y++){put(-3,y);put(3,y)}
+ for(let y=-9;y<=9;y++)if(Math.abs(y)>=8){put(0,y);put(-1,y);put(1,y)}
+ // Distinct entry points: missing wing tip, nose, tail, or flank.
+ if(breach===0)for(let x=6;x<=10;x++)for(let y=-4;y<=1;y++)del(x,y);
+ if(breach===1)for(let x=-10;x<=-6;x++)for(let y=-1;y<=4;y++)del(x,y);
+ if(breach===2)for(let y=-10;y<=-7;y++)for(let x=-2;x<=2;x++)del(x,y);
+ if(breach===3)for(let y=7;y<=10;y++)for(let x=-2;x<=2;x++)del(x,y);
+ // Ensure an actual corridor from the breach to the central chamber.
+ if(breach===0){for(let x=3;x<=7;x++)del(x,-1);del(3,0)}
+ if(breach===1){for(let x=-7;x<=-3;x++)del(x,1);del(-3,0)}
+ if(breach===2){for(let y=-8;y<=-3;y++)del(0,y)}
+ if(breach===3){for(let y=3;y<=8;y++)del(0,y)}
+ // Two power cores at opposite sides of the central chamber.
+ cores.push({x:-1,y:0,taken:false},{x:1,y:0,taken:false});
+ // Red cargo cells: 75% chance of a high-value gold crate per 56x56 tile.
+ for(const [xx,yy] of [[0,-2],[0,2],[-1,-2],[1,-2],[-1,2],[1,2],[-2,-1],[2,-1],[-2,1],[2,1],[0,-5],[0,5]]){
+  if(!walls.has(xx+','+yy)&&rng()<.75)gold.push({x:xx,y:yy,taken:false,value:80+Math.floor(rng()*121)})
+ }
+ // Brown salvage lockers: 25 cosmetic-only Scrap each.
+ for(const [xx,yy] of [[-5,-1],[5,1],[-1,-5],[1,5],[-5,1],[5,-1]])if(!walls.has(xx+','+yy))scrap.push({x:xx,y:yy,taken:false});
+ return{x,y,seed,orientation,breach,walls:[...walls].map(s=>s.split(',').map(Number)),gold,scrap,cores,elapsed:0,armed:false,countdown:WRECK_ESCAPE,destroyed:false,damageClock:0,announced:false};
+}
+function wreckGenerateRing(ring){
+ if(wreckRings.has(ring))return;wreckRings.add(ring);
+ const count=ring===0?5:10,inner=ring===0?2600:10000+(ring-1)*5000,outer=10000+ring*5000;
+ const rng=wreckRandom((expeditionSeed^Math.imul(ring+1,0x9e3779b9))>>>0),offset=rng()*Math.PI*2;
+ for(let i=0;i<count;i++){const angle=offset+(i+(rng()-.5)*.5)*Math.PI*2/count;
+  const distance=Math.sqrt(inner*inner+rng()*(outer*outer-inner*inner));
+  const x=Math.cos(angle)*distance,y=Math.sin(angle)*distance;
+  if(specialFormations.some(f=>Math.hypot(f.x-x,f.y-y)<f.clearRadius+WRECK_RADIUS))continue;
+  wrecks.push(wreckMake(x,y,Math.floor(rng()*4294967295)))
+ }
+}
+function wreckNearby(w,margin=1100){return !w.destroyed&&Math.hypot(player.x-w.x,player.y-w.y)<WRECK_RADIUS+margin}
+function wreckToWorld(w,x,y){const a=w.orientation*Math.PI/2,co=Math.cos(a),si=Math.sin(a);return{x:w.x+(x*co-y*si)*WRECK_TILE,y:w.y+(x*si+y*co)*WRECK_TILE}}
+function wreckToLocal(w,x,y){const a=-w.orientation*Math.PI/2,co=Math.cos(a),si=Math.sin(a),dx=x-w.x,dy=y-w.y;return{x:(dx*co-dy*si)/WRECK_TILE,y:(dx*si+dy*co)/WRECK_TILE}}
+function wreckInside(w,x,y){const p=wreckToLocal(w,x,y);return Math.abs(p.x)<9.8&&Math.abs(p.y)<10.4}
+function wreckCollides(w,x,y,r=16){const p=wreckToLocal(w,x,y);return w.walls.some(([wx,wy])=>{const nx=Math.max(wx-.5,Math.min(p.x,wx+.5)),ny=Math.max(wy-.5,Math.min(p.y,wy+.5));return Math.hypot(p.x-nx,p.y-ny)<r/WRECK_TILE})}
+function wreckAwardUpgrade(){const branches=[
+ [SHIP_RESEARCH,save.shipLevels,'ship'],
+ [LUCK_RESEARCH,save.luckLevels,'luck'],
+ [PROFIT_RESEARCH,save.profitLevels,'profit'],
+ [BONUS_RESEARCH,save.bonusLevels,'bonus']
+ ];const eligible=[];for(const [nodes,levels,branch] of branches)for(const n of nodes)if((Number(levels[n.id])||0)<n.max)eligible.push({n,levels,branch});
+ if(!eligible.length){notify('ALL RESEARCH MAXED — CORE DEACTIVATED');return}
+ const chosen=eligible[Math.floor(Math.random()*eligible.length)];chosen.levels[chosen.n.id]=(Number(chosen.levels[chosen.n.id])||0)+1;
+ persist();notify('DERELICT CORE: '+chosen.n.name.toUpperCase()+' +1 LEVEL');renderAbilities();renderGameAbilityBar();
+}
+function wreckTick(dt,oldX,oldY){
+ const ring=Math.max(0,Math.floor(Math.max(0,Math.hypot(player.x,player.y)-10000)/5000)+1);
+ for(let i=0;i<=ring;i++)wreckGenerateRing(i);
+ for(const w of wrecks){
+  if(w.destroyed)continue;
+  // The wreck drifts at only 1.5 units/sec and rotates in 90-degree variants.
+  w.elapsed+=dt;w.x+=Math.cos(w.seed)*1.5*dt;w.y+=Math.sin(w.seed)*1.5*dt;
+  if(w.armed){w.countdown-=dt;if(w.countdown<=0){
+    w.destroyed=true;audioSound('death');
+    if(Math.hypot(player.x-w.x,player.y-w.y)<WRECK_RADIUS){finish(false,'DERELICT SELF-DESTRUCTION');return}
+    notify('DERELICT EXPLODED — ESCAPED THE BLAST');continue
+  }}
+  if(!wreckNearby(w,250))continue;
+  if(!w.announced){w.announced=true;notify('DERELICT SHIP DETECTED · COLLISION HAZARD')}
+  // Swept collision tests stop fast ships and dodges from phasing through walls.
+  const dist=Math.hypot(player.x-oldX,player.y-oldY),steps=Math.min(90,Math.max(1,Math.ceil(dist/12)));
+  let collided=false,lastSafeX=oldX,lastSafeY=oldY;
+  for(let i=1;i<=steps;i++){const t=i/steps,x=oldX+(player.x-oldX)*t,y=oldY+(player.y-oldY)*t;
+   if(wreckCollides(w,x,y)){collided=true;break}lastSafeX=x;lastSafeY=y}
+  if(collided){
+   player.x=lastSafeX;player.y=lastSafeY;player.vx*=-.25;player.vy*=-.25;dodgeBurstTimer=0;dodgeIFrames=0;drillActive=false;
+   if(w.damageClock<=0){w.damageClock=.65;hits++;runTaskStats.damage++;streakCount=0;audioSound('impact');if(dedicationTriggered)dedicationClean=false;notify('DERELICT WALL IMPACT · HULL DAMAGED');if(hits>=maxHull()){finish(false,'SHIP DESTROYED');return}}
+  }
+  w.damageClock=Math.max(0,w.damageClock-dt);
+  // No dodge / i-frames inside the wreck's footprint.
+  if(wreckInside(w,player.x,player.y)){dodgeBurstTimer=0;dodgeIFrames=0}
+  const local=wreckToLocal(w,player.x,player.y);
+  const touch=(item)=>Math.hypot(local.x-item.x,local.y-item.y)<.58;
+  for(const g of w.gold)if(!g.taken&&touch(g)){g.taken=true;haul+=g.value;notify('DERELICT CARGO · +'+g.value+' GOLD')}
+  for(const s of w.scrap)if(!s.taken&&touch(s)){s.taken=true;save.scrap=(Number(save.scrap)||0)+25;persist();notify('DERELICT SALVAGE · +25 SCRAP')}
+  for(const core of w.cores)if(!core.taken&&touch(core)){core.taken=true;wreckAwardUpgrade();if(w.cores.every(c=>c.taken)){w.armed=true;w.countdown=WRECK_ESCAPE;notify('SELF-DESTRUCT INITIATED · '+WRECK_ESCAPE+' SECONDS TO ESCAPE');audioSound('ability')}}
+  // Nearby asteroids rebound instead of entering the wreck.
+  for(const rock of rocks){const dx=rock.x-w.x,dy=rock.y-w.y,d=Math.hypot(dx,dy);if(d<WRECK_RADIUS&&d>1){const normalX=dx/d,normalY=dy/d;rock.x=w.x+normalX*(WRECK_RADIUS+rock.s/2);rock.y=w.y+normalY*(WRECK_RADIUS+rock.s/2);const v=rock.vx*normalX+rock.vy*normalY;if(v<0){rock.vx-=1.8*v*normalX;rock.vy-=1.8*v*normalY}}}
+ }
+}
+function wreckDraw(camX,camY){
+ for(const w of wrecks){if(w.destroyed||Math.abs(w.x-player.x)>WRECK_RADIUS+W||Math.abs(w.y-player.y)>WRECK_RADIUS+H)continue;
+  const a=w.orientation*Math.PI/2;ctx.save();ctx.translate(w.x-camX,w.y-camY);ctx.rotate(a);
+  ctx.fillStyle='#102238';ctx.strokeStyle='#294963';ctx.lineWidth=3;
+  ctx.fillRect(-3.2*WRECK_TILE,-3.2*WRECK_TILE,6.4*WRECK_TILE,6.4*WRECK_TILE);
+  for(const [x,y] of w.walls){const px=x*WRECK_TILE,py=y*WRECK_TILE;ctx.fillStyle=w.armed?'#8e3540':'#2e4057';ctx.fillRect(px-28,py-28,56,56);ctx.fillStyle='#64778a';ctx.fillRect(px-25,py-25,50,7);ctx.strokeRect(px-27,py-27,54,54)}
+  for(const g of w.gold)if(!g.taken){ctx.fillStyle='#aa4840';ctx.fillRect(g.x*56-21,g.y*56-21,42,42);ctx.fillStyle='#f4c66a';ctx.fillRect(g.x*56-12,g.y*56-12,24,24)}
+  for(const s of w.scrap)if(!s.taken){ctx.fillStyle='#986a43';ctx.fillRect(s.x*56-21,s.y*56-21,42,42);ctx.fillStyle='#d9b68a';ctx.fillRect(s.x*56-9,s.y*56-9,18,18)}
+  for(const core of w.cores)if(!core.taken){ctx.fillStyle='#1d79ba';ctx.shadowColor='#5fdcff';ctx.shadowBlur=18;ctx.fillRect(core.x*56-22,core.y*56-22,44,44);ctx.shadowBlur=0;ctx.fillStyle='#b6f5ff';ctx.fillRect(core.x*56-9,core.y*56-9,18,18)}
+  if(w.armed){ctx.fillStyle='#ff8585';ctx.font='bold 27px system-ui';ctx.textAlign='center';ctx.fillText('SELF-DESTRUCT '+Math.max(0,w.countdown).toFixed(1)+'s',0,-11*56)}
+  ctx.restore()
+ }
+}
+function wreckDodgeBlocked(){return wrecks.some(w=>wreckNearby(w,100)&&wreckInside(w,player.x,player.y))}
+
 const ROCK_CHUNK=520,ROCK_RADIUS=2;
 // The golden maze occupies about 405 units from its centre. Keep normal
 // asteroids outside a 550-unit exclusion circle, including their half-size.
@@ -871,9 +989,9 @@ function updateOutposts(dt,oldX,oldY){
   }
  }
 }
-function begin(){audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
+function begin(){wrecks=[];wreckRings=new Set();wreckGenerateRing(0);audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
 function activateDodge(){
- if(!active||dodgeCharges<=0)return;
+ if(!active||dodgeCharges<=0)return;if(wreckDodgeBlocked()){notify('DODGE DISABLED INSIDE DERELICT');return}
  const dx=flightWASD&&!isMobile?(pressedKeys.has('KeyD')-pressedKeys.has('KeyA')):isMobile?joy.x:mouse.x-W/2,dy=flightWASD&&!isMobile?(pressedKeys.has('KeyS')-pressedKeys.has('KeyW')):isMobile?joy.y:mouse.y-H/2;
  const m=Math.hypot(dx,dy);
  if(m>0.08){dodgeDirX=dx/m;dodgeDirY=dy/m}
@@ -914,7 +1032,7 @@ const velocity=Math.hypot(player.vx,player.vy);
 const alignment=moving&&velocity>0?(dx*player.vx+dy*player.vy)/(mag*velocity):0;
 const dampFactor=1+shipLevel("s03")*.05+shipLevel("s11")*.05;const damping=(!moving?(flightWASD&&!isMobile?1.8:0.85):0.45*Math.max(0,1-alignment))*dampFactor;
 const reverseAssist=moving&&velocity>1&&alignment<-.05?shipLevel('s03')*.05*Math.max(0,-alignment):0;const drag=Math.exp(-(damping+reverseAssist)*dt);player.vx*=drag;player.vy*=drag;const oldX=player.x,oldY=player.y;player.x+=player.vx*dt;player.y+=player.vy*dt;
-if(dodgeBurstTimer>0){const burstStep=Math.min(dt,dodgeBurstTimer);const dodgeSpeed=420*(1+bonusLevel('b03')*.05);player.x+=dodgeDirX*dodgeSpeed*burstStep;player.y+=dodgeDirY*dodgeSpeed*burstStep;dodgeBurstTimer-=burstStep;}maxRunDistance=Math.max(maxRunDistance,Math.hypot(player.x,player.y));invuln=Math.max(0,invuln-dt);
+if(dodgeBurstTimer>0){const burstStep=Math.min(dt,dodgeBurstTimer);const dodgeSpeed=420*(1+bonusLevel('b03')*.05);player.x+=dodgeDirX*dodgeSpeed*burstStep;player.y+=dodgeDirY*dodgeSpeed*burstStep;dodgeBurstTimer-=burstStep;}wreckTick(dt,oldX,oldY);if(!active)return;maxRunDistance=Math.max(maxRunDistance,Math.hypot(player.x,player.y));invuln=Math.max(0,invuln-dt);
 // Baseline chance 12% per 0.16s spawn check; core adds 0.01 percentage points per level.
 spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;if(Math.random()<.12+save.core*.00001+luckLevel('l04')*.00005&&crates.length<3000)spawnAround(350,1250,(x,y)=>{
  if(overlapsGoldenClearance(x,y,20))return;
@@ -946,6 +1064,7 @@ if(phase==='return'&&remaining<=5&&remaining>0&&Math.hypot(player.x,player.y)>50
 if(phase==='return'&&Math.hypot(player.x,player.y)<station.r){finish(true,'SALVAGE DELIVERED');return}toastTime-=dt;$('dodgeMobile').style.display=isMobile?'block':'none';$('dodgeMobile').disabled=dodgeCharges<=0;$('dodgeMobile').textContent=dodgeCharges<=0?'DODGE '+Math.ceil(dodgeCooldownTimer)+'s':'DODGE '+dodgeCharges+'x';$('dodgeHUD').textContent='DODGE '+(dodgeCharges<=0?Math.ceil(dodgeCooldownTimer)+'s':dodgeCharges+' READY')+(dodgeIFrames>0?' · INVULNERABLE':'');if(toastTime<=0)$('toast').style.display='none';$('brakeMobile').style.display=isMobile&&equippedBrakeSlot()>=0?'block':'none';$('brakeMobile').disabled=brakeTimer>0;$('brakeMobile').textContent=brakeTimer>0?'BRAKE '+Math.ceil(brakeTimer)+'s':'BRAKE';$('phase').textContent=(phase==='collect'?'SCAVENGING':'RETURN TO STATION')+(drillActive?' · DRILL '+Math.floor(DRILL_DIST[shipLevel('s07')]-drillTravel):'');$('phase').className=phase==='collect'?'':'warn';$('timer').textContent=Math.max(0,remaining).toFixed(1)+'s';$('hp').textContent=(shipLevel('s10')>0?'HAL '+Math.ceil((60-shipLevel('s14'))-halTimer)+'s · ':'')+'HULL '+ '◆'.repeat(Math.min(40,maxHull()-hits))+'◇'.repeat(Math.min(40,hits))+(shields?' 🛡'+shields:'');updateTrackerHUD();$('haul').textContent=goldText(haul)+' ◆ · STREAK '+streakCount;$('distance').textContent=Math.round(Math.hypot(player.x,player.y));$('maxdistance').textContent=Math.floor(maxRunDistance);$('distmult').textContent='×'+Math.max(1,maxRunDistance/1000).toFixed(3);const angle=Math.atan2(-player.y,-player.x)*180/Math.PI;$('direction').textContent=phase==='return'?`STATION ${Math.round(angle)}° from right`:'STATION ◉'}
 function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#040b1b';ctx.fillRect(0,0,W,H);const camX=player.x-W/2,camY=player.y-H/2;let gx=Math.floor(camX/110),gy=Math.floor(camY/110);for(let ix=gx;ix<gx+Math.ceil(W/110)+2;ix++)for(let iy=gy;iy<gy+Math.ceil(H/110)+2;iy++){let h=Math.abs((ix*73856093)^(iy*19349663))%100;if(h<43){ctx.fillStyle=h<6?'#7299b9':'#294565';ctx.fillRect(ix*110-camX+(h*17)%90,iy*110-camY+(h*11)%90,h<6?2:1,h<6?2:1)}}
 const sx=station.x-camX,sy=station.y-camY;ctx.save();ctx.translate(sx,sy);ctx.strokeStyle='#49dfeb';ctx.lineWidth=4;ctx.shadowColor='#42d5f4';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(0,0,station.r,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#183c5d';ctx.fillRect(-44,-44,88,88);ctx.fillStyle='#317e9d';ctx.fillRect(-30,-30,60,60);ctx.fillStyle='#86e5ed';ctx.fillRect(-13,-13,26,26);ctx.fillStyle='#d9fbff';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText('REFUEL',0,-94);ctx.restore();
+wreckDraw(camX,camY);
 for(const c of crates){let x=c.x-camX,y=c.y-camY;if(x< -30||y< -30||x>W+30||y>H+30)continue;ctx.save();ctx.translate(x,y);ctx.fillStyle=c.kind==='magma'?'#ff6848':c.kind==='obsidian'?'#ad8de9':c.rare?'#ff9f43':'#e8ba36';ctx.shadowColor=c.kind==='magma'?'#ff4422':c.kind==='obsidian'?'#a48aff':c.rare?'#ffb84b':'#edcc55';ctx.shadowBlur=c.rare?20:8;const s=c.rare?29:22;ctx.fillRect(-s/2,-s/2,s,s);ctx.shadowBlur=0;ctx.strokeStyle='#7c571d';ctx.lineWidth=3;ctx.strokeRect(-s/2,-s/2,s,s);ctx.beginPath();ctx.moveTo(-s/2,0);ctx.lineTo(s/2,0);ctx.moveTo(0,-s/2);ctx.lineTo(0,s/2);ctx.stroke();if(c.rare&&bonusLevel('b18')>0&&Math.hypot(c.x-player.x,c.y-player.y)<300+100*bonusLevel('b18')){ctx.strokeStyle='#88f8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*2);ctx.stroke()}ctx.restore()}
 // Golden asteroids are static obstacles and are drawn over the moving field.
 for(const r of goldenRocks){const x=r.x-camX,y=r.y-camY;if(x<-r.s||y<-r.s||x>W+r.s||y>H+r.s)continue;ctx.fillStyle=r.formationType==='magma'?'#7b342a':r.formationType==='obsidian'?'#38334e':'#a57b30';ctx.shadowColor=r.formationType==='magma'?'#f65c35':r.formationType==='obsidian'?'#9274c5':'#edb94b';ctx.shadowBlur=9;ctx.fillRect(x-r.s/2,y-r.s/2,r.s,r.s);ctx.shadowBlur=0;ctx.fillStyle=r.formationType==='magma'?'#c65a37':r.formationType==='obsidian'?'#696080':'#d6b65f';ctx.fillRect(x-r.s/2+5,y-r.s/2+5,r.s-10,7);ctx.fillStyle=r.formationType==='magma'?'#4c201c':r.formationType==='obsidian'?'#211e35':'#6f5225';ctx.fillRect(x-r.s/2,y+r.s/2-9,r.s,9);}
