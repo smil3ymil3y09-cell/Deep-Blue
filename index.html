@@ -676,7 +676,7 @@ for(const r of goldenRocks){const x=r.x-camX,y=r.y-camY;if(x<-r.s||y<-r.s||x>W+r
 // Purely visual: size, hitbox, position and movement are unchanged.
 for(const r of rocks){
  const x=r.x-camX,y=r.y-camY,s=r.s;if(x<-s||y<-s||x>W+s||y>H+s)continue;
- const h=((Math.imul(Math.floor(r.x),73856093)^Math.imul(Math.floor(r.y),19349663))>>>0);
+ const h=(r.surfacePattern??=(Math.imul(Math.floor(r.x),73856093)^Math.imul(Math.floor(r.y),19349663))>>>0);
  const half=s/2,cut=Math.max(3,Math.min(half*.17,10)),left=-half,top=-half,right=half,bottom=half;
  ctx.save();ctx.translate(x,y);
  ctx.beginPath();ctx.moveTo(left+cut,top);ctx.lineTo(right-cut*.7,top);ctx.lineTo(right,top+cut*.8);ctx.lineTo(right,bottom-cut);ctx.lineTo(right-cut,bottom);ctx.lineTo(left+cut*.7,bottom);ctx.lineTo(left,bottom-cut*.75);ctx.lineTo(left,top+cut);ctx.closePath();
