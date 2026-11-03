@@ -863,6 +863,122 @@ function wreckDraw(camX,camY){
 }
 function wreckDodgeBlocked(){return wrecks.some(w=>wreckNearby(w,100)&&wreckInside(w,player.x,player.y))}
 
+
+/* MAP FORGE IMPORT: Abandoned Station, original 64x32 authored layout.
+   Rows below start at y=1; spaces are void, # walls, . floor, E entrance.
+   No procedural wall or floor generation. */
+const STATION_TILE=56,STATION_W=64,STATION_H=32;
+const STATION_ROWS=["                      ############","                      #..........#","                      #..........#","                      #....##....######","                      #....##.........#","                      #....##.........#","                      #..........###..#","                      #..........# #..#","                      ##..######## #..#","                       #..#      ###..###","           #############..#      #......#","           E..............########......#","           E............................#","           E............................#","           E..............########......#","           #############..#      #......#","                       #..#      #......#","                     ###..###    #......#","                     #......#    ########","                     #......#","                     #......#","                     #......#","                     ########"];
+const STATION_OBJECTS={"cargo":"32:2,28:3,29:4,34:11,30:13,32:14,23:20,26:20,24:21,26:22","core":"30:5,39:18","scrap":"22:12,15:13,30:14,38:16","debris":"28:2,26:3,29:3,23:4,26:5,29:5,33:5,24:6,31:6,35:6,36:6,25:8,29:8,37:8,24:11,35:11,36:11,12:12,15:12,17:12,20:12,23:12,37:12,38:12,14:13,19:13,20:13,22:13,25:13,29:13,36:13,14:14,17:14,20:14,27:14,29:14,35:14,37:14,39:14,12:15,16:15,18:15,22:15,24:15,39:15,35:16,37:16,37:17,35:18,36:18,37:18"};
+const STATION_CELLS=Array.from({length:STATION_W*STATION_H},()=> ' ');
+for(let y=0;y<STATION_ROWS.length;y++)for(let x=0;x<STATION_ROWS[y].length;x++)STATION_CELLS[(y+1)*STATION_W+x]=STATION_ROWS[y][x];
+const STATION_SOLID=[],STATION_DECK=[],STATION_ENTRANCES=[];
+for(let y=0;y<STATION_H;y++)for(let x=0;x<STATION_W;x++){
+ const v=STATION_CELLS[y*STATION_W+x];if(v==='#')STATION_SOLID.push([x,y]);
+ if(v==='.'||v==='E')STATION_DECK.push([x,y]);
+ if(v==='E')STATION_ENTRANCES.push([x,y]);
+}
+const STATION_ITEMS={};
+for(const [kind,positions] of Object.entries(STATION_OBJECTS))STATION_ITEMS[kind]=positions.split(',').map(s=>{const [x,y]=s.split(':').map(Number);return{x,y,taken:false}});
+let abandonedStations=[],stationBands=new Set();
+function stationCell(s,x,y){return{x:Math.floor((x-s.x)/STATION_TILE+STATION_W/2),y:Math.floor((y-s.y)/STATION_TILE+STATION_H/2)}}
+function stationWorld(s,x,y){return{x:s.x+(x-STATION_W/2+.5)*STATION_TILE,y:s.y+(y-STATION_H/2+.5)*STATION_TILE}}
+function stationInside(s,x,y){const p=stationCell(s,x,y);return p.x>=0&&p.x<STATION_W&&p.y>=0&&p.y<STATION_H&&['.','E'].includes(STATION_CELLS[p.y*STATION_W+p.x])}
+function stationSolidNear(s,x,y,r=16){
+ const lx=(x-s.x)/STATION_TILE+STATION_W/2-.5,ly=(y-s.y)/STATION_TILE+STATION_H/2-.5;
+ for(let yy=Math.max(0,Math.floor(ly-1));yy<=Math.min(STATION_H-1,Math.ceil(ly+1));yy++)
+ for(let xx=Math.max(0,Math.floor(lx-1));xx<=Math.min(STATION_W-1,Math.ceil(lx+1));xx++){
+  if(STATION_CELLS[yy*STATION_W+xx]!=='#')continue;
+  const dx=Math.max(Math.abs(lx-xx)-.5,0),dy=Math.max(Math.abs(ly-yy)-.5,0);
+  if(Math.hypot(dx,dy)*STATION_TILE<r)return true;
+ }return false
+}
+function stationGenerateBand(band){
+ if(stationBands.has(band))return;stationBands.add(band);
+ const rng=wreckRandom((expeditionSeed^Math.imul(band+19,0x6c8e9cf5))>>>0);
+ const count=band===0?1:2,inner=band===0?2700:5000+(band-1)*10000,outer=band===0?5000:5000+band*10000;
+ for(let i=0;i<count;i++){
+  let candidate=null;
+  for(let attempt=0;attempt<35;attempt++){
+   const angle=(i+rng()*.65)*Math.PI*2/count+rng()*Math.PI*2/count;
+   const dist=Math.sqrt(inner*inner+rng()*(outer*outer-inner*inner));
+   const x=Math.cos(angle)*dist,y=Math.sin(angle)*dist;
+   if(wrecks.some(w=>Math.hypot(w.x-x,w.y-y)<3100)||abandonedStations.some(s=>Math.hypot(s.x-x,s.y-y)<3400)||specialFormations.some(f=>Math.hypot(f.x-x,f.y-y)<(f.clearRadius||0)+2400))continue;
+   candidate={x,y};break
+  }
+  if(!candidate)continue;
+  const s={...candidate,seed:Math.floor(rng()*4294967295),items:{}};
+  for(const [kind,items] of Object.entries(STATION_ITEMS))s.items[kind]=items.map(v=>({...v}));
+  abandonedStations.push(s);
+ }
+ rocks=rocks.filter(r=>!rockOverlapsStation(r.x,r.y,r.s/2))
+}
+function rockOverlapsStation(x,y,radius=0){
+ for(const s of abandonedStations){
+  if(Math.abs(x-s.x)>2100+radius||Math.abs(y-s.y)>1250+radius)continue;
+  const lx=(x-s.x)/STATION_TILE+STATION_W/2-.5,ly=(y-s.y)/STATION_TILE+STATION_H/2-.5;
+  for(const [tx,ty] of STATION_SOLID.concat(STATION_DECK)){
+   if(Math.abs(tx-lx)>4+radius/STATION_TILE||Math.abs(ty-ly)>4+radius/STATION_TILE)continue;
+   const dx=Math.max(Math.abs(lx-tx)-.5,0),dy=Math.max(Math.abs(ly-ty)-.5,0);
+   if(Math.hypot(dx,dy)*STATION_TILE<128+radius)return true
+  }
+ }return false
+}
+function stationTick(dt,oldX,oldY){
+ const dist=Math.hypot(player.x,player.y),band=dist<5000?0:Math.floor((dist-5000)/10000)+1;
+ for(let b=0;b<=band;b++)stationGenerateBand(b);
+ for(const s of abandonedStations){
+  if(Math.abs(s.x-player.x)>2400||Math.abs(s.y-player.y)>1600)continue;
+  const distance=Math.hypot(player.x-oldX,player.y-oldY),steps=Math.min(110,Math.max(1,Math.ceil(distance/12)));
+  let sx=oldX,sy=oldY,hit=false;
+  for(let j=1;j<=steps;j++){const t=j/steps,x=oldX+(player.x-oldX)*t,y=oldY+(player.y-oldY)*t;if(stationSolidNear(s,x,y)){hit=true;break}sx=x;sy=y}
+  if(hit){player.x=sx;player.y=sy;player.vx*=-.25;player.vy*=-.25;dodgeBurstTimer=0;dodgeIFrames=0;drillActive=false;
+   if(!s.damageClock||s.damageClock<=0){s.damageClock=.65;hits++;runTaskStats.damage++;audioSound('impact');notify('STATION HULL IMPACT');if(hits>=maxHull()){finish(false,'SHIP DESTROYED');return}}}
+  s.damageClock=Math.max(0,(s.damageClock||0)-dt);
+  const p=stationCell(s,player.x,player.y);
+  for(const [kind,items] of Object.entries(s.items))for(const item of items){
+   if(item.taken||Math.hypot((p.x+.5)-(item.x+.5),(p.y+.5)-(item.y+.5))>0.7)continue;
+   if(kind==='debris'){if(!s.debrisClock||s.debrisClock<=0){s.debrisClock=.7;hits++;runTaskStats.damage++;audioSound('impact');notify('STATION DEBRIS · HULL DAMAGED');if(hits>=maxHull()){finish(false,'SHIP DESTROYED');return}}}
+   else if(kind==='cargo'){item.taken=true;const value=100;haul+=value;notify('STATION CARGO · +'+value+' GOLD')}
+   else if(kind==='scrap'){item.taken=true;save.scrap=(Number(save.scrap)||0)+25;persist();notify('STATION SALVAGE · +25 SCRAP')}
+   else if(kind==='core'){item.taken=true;wreckAwardUpgrade()}
+  }
+  s.debrisClock=Math.max(0,(s.debrisClock||0)-dt);
+ }
+}
+function stationDraw(camX,camY){
+ for(const s of abandonedStations){
+  if(Math.abs(s.x-player.x)>2500||Math.abs(s.y-player.y)>1700)continue;
+  const t=STATION_TILE,ox=s.x-STATION_W/2*t-camX,oy=s.y-STATION_H/2*t-camY;
+  ctx.save();
+  for(let y=0;y<STATION_H;y++)for(let x=0;x<STATION_W;x++){
+   const v=STATION_CELLS[y*STATION_W+x];if(v===' ')continue;
+   const px=ox+x*t,py=oy+y*t;if(px>W+60||py>H+60||px< -t||py< -t)continue;
+   if(v==='#'){ctx.fillStyle='#53617d';ctx.fillRect(px,py,t,t);ctx.fillStyle='#8191ad';ctx.fillRect(px+3,py+3,t-6,7);ctx.fillStyle='#29374e';ctx.fillRect(px+5,py+15,t-10,t-21);ctx.fillStyle='#a2b0cc';ctx.fillRect(px+9,py+20,4,4);ctx.fillRect(px+t-13,py+t-12,4,4)}
+   else{ctx.fillStyle=v==='E'?'#3a4667':'#1d2940';ctx.fillRect(px,py,t,t);ctx.strokeStyle='#51647a55';ctx.strokeRect(px+3,py+3,t-6,t-6);if(v==='E'){ctx.fillStyle='#b38cff';ctx.fillRect(px+5,py+5,5,t-10)}}
+  }
+  const palette={cargo:'#db9663',core:'#8ecfff',scrap:'#bd9869',debris:'#796e80'};
+  for(const [kind,items] of Object.entries(s.items))for(const item of items){
+   if(item.taken)continue;const px=ox+(item.x+.5)*t,py=oy+(item.y+.5)*t;if(px< -50||py< -50||px>W+50||py>H+50)continue;
+   ctx.save();ctx.translate(px,py);ctx.fillStyle=palette[kind];ctx.strokeStyle='#d7e6fa';ctx.lineWidth=2;
+   if(kind==='core'){ctx.shadowColor='#b892ff';ctx.shadowBlur=18;ctx.rotate(Math.PI/4);ctx.fillRect(-12,-12,24,24);ctx.strokeRect(-12,-12,24,24)}
+   else if(kind==='debris'){ctx.rotate((item.x*11+item.y*7)%9/9);ctx.fillRect(-11,-5,22,10);ctx.fillRect(-5,-11,9,22)}
+   else{ctx.fillRect(-13,-13,26,26);ctx.strokeRect(-13,-13,26,26);ctx.fillStyle='#ffffff55';ctx.fillRect(-9,-9,18,4)}
+   ctx.restore()
+  }
+  for(const item of STATION_ITEMS.damage){const px=ox+(item.x+.5)*t,py=oy+(item.y+.5)*t;ctx.strokeStyle='#a95a75';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(px-13,py-12);ctx.lineTo(px+9,py+4);ctx.lineTo(px-5,py+15);ctx.stroke()}
+  ctx.restore()
+ }
+}
+function stationTags(){
+ for(const s of abandonedStations){
+  const d=Math.hypot(player.x-s.x,player.y-s.y);if(d>4000||stationInside(s,player.x,player.y))continue;
+  const a=Math.atan2(s.y-player.y,s.x-player.x),x=Math.max(90,Math.min(W-90,W/2+Math.cos(a)*(W/2-100))),y=Math.max(72,Math.min(H-60,H/2+Math.sin(a)*(H/2-85)));
+  ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.fillStyle='#bc79ff';ctx.shadowColor='#a75bff';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(14,0);ctx.lineTo(-7,-8);ctx.lineTo(-3,0);ctx.lineTo(-7,8);ctx.fill();ctx.restore();
+  ctx.save();ctx.textAlign='center';ctx.font='bold 11px system-ui';ctx.fillStyle='#dbb4ff';ctx.shadowColor='#9a4cff';ctx.shadowBlur=6;ctx.fillText('ABANDONED STATION',x,y-18);ctx.font='10px system-ui';ctx.fillText(Math.round(d).toLocaleString('en-GB')+'u',x,y+23);ctx.restore()
+ }
+}
+
 const ROCK_CHUNK=520,ROCK_RADIUS=2;
 // The golden maze occupies about 405 units from its centre. Keep normal
 // asteroids outside a 550-unit exclusion circle, including their half-size.
@@ -887,6 +1003,7 @@ function chunkRandom(cx,cy){let seed=(Math.imul(cx,73856093)^Math.imul(cy,193496
 // Keep natural asteroids at least 128px clear of the derelict's visible
 // floor AND physical wall tiles, accounting for the asteroid's own radius.
 function rockOverlapsWreck(x,y,rockRadius=0){
+ if(rockOverlapsStation(x,y,rockRadius))return true;
  for(const w of wrecks){
   if(w.destroyed||Math.abs(x-w.x)>1350+rockRadius||Math.abs(y-w.y)>1100+rockRadius)continue;
   const p=wreckToLocal(w,x,y),r=(128+rockRadius)/WRECK_TILE;
@@ -1188,7 +1305,7 @@ function updateOutposts(dt,oldX,oldY){
   }
  }
 }
-function begin(){wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();wreckGenerateRing(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
+function begin(){abandonedStations=[];stationBands=new Set();wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();wreckGenerateRing(0);stationGenerateBand(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
 function activateDodge(){
  if(!active||dodgeCharges<=0)return;if(wreckDodgeBlocked()){notify('DODGE DISABLED INSIDE DERELICT');return}
  const dx=flightWASD&&!isMobile?(pressedKeys.has('KeyD')-pressedKeys.has('KeyA')):isMobile?joy.x:mouse.x-W/2,dy=flightWASD&&!isMobile?(pressedKeys.has('KeyS')-pressedKeys.has('KeyW')):isMobile?joy.y:mouse.y-H/2;
@@ -1231,7 +1348,7 @@ const velocity=Math.hypot(player.vx,player.vy);
 const alignment=moving&&velocity>0?(dx*player.vx+dy*player.vy)/(mag*velocity):0;
 const dampFactor=1+shipLevel("s03")*.05+shipLevel("s11")*.05;const damping=(!moving?(flightWASD&&!isMobile?1.8:0.85):0.45*Math.max(0,1-alignment))*dampFactor;
 const reverseAssist=moving&&velocity>1&&alignment<-.05?shipLevel('s03')*.05*Math.max(0,-alignment):0;const drag=Math.exp(-(damping+reverseAssist)*dt);player.vx*=drag;player.vy*=drag;const oldX=player.x,oldY=player.y;player.x+=player.vx*dt;player.y+=player.vy*dt;
-if(dodgeBurstTimer>0){const burstStep=Math.min(dt,dodgeBurstTimer);const dodgeSpeed=420*(1+bonusLevel('b03')*.05);player.x+=dodgeDirX*dodgeSpeed*burstStep;player.y+=dodgeDirY*dodgeSpeed*burstStep;dodgeBurstTimer-=burstStep;}wreckTick(dt,oldX,oldY);if(!active)return;maxRunDistance=Math.max(maxRunDistance,Math.hypot(player.x,player.y));invuln=Math.max(0,invuln-dt);
+if(dodgeBurstTimer>0){const burstStep=Math.min(dt,dodgeBurstTimer);const dodgeSpeed=420*(1+bonusLevel('b03')*.05);player.x+=dodgeDirX*dodgeSpeed*burstStep;player.y+=dodgeDirY*dodgeSpeed*burstStep;dodgeBurstTimer-=burstStep;}wreckTick(dt,oldX,oldY);if(!active)return;stationTick(dt,oldX,oldY);if(!active)return;maxRunDistance=Math.max(maxRunDistance,Math.hypot(player.x,player.y));invuln=Math.max(0,invuln-dt);
 // Baseline chance 12% per 0.16s spawn check; core adds 0.01 percentage points per level.
 spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;if(Math.random()<.12+save.core*.00001+luckLevel('l04')*.00005&&crates.length<3000)spawnAround(350,1250,(x,y)=>{
  if(overlapsGoldenClearance(x,y,20))return;
@@ -1263,7 +1380,7 @@ if(phase==='return'&&remaining<=5&&remaining>0&&Math.hypot(player.x,player.y)>50
 if(phase==='return'&&Math.hypot(player.x,player.y)<station.r){finish(true,'SALVAGE DELIVERED');return}toastTime-=dt;$('dodgeMobile').style.display=isMobile?'block':'none';$('dodgeMobile').disabled=dodgeCharges<=0;$('dodgeMobile').textContent=dodgeCharges<=0?'DODGE '+Math.ceil(dodgeCooldownTimer)+'s':'DODGE '+dodgeCharges+'x';$('dodgeHUD').textContent='DODGE '+(dodgeCharges<=0?Math.ceil(dodgeCooldownTimer)+'s':dodgeCharges+' READY')+(dodgeIFrames>0?' · INVULNERABLE':'');if(toastTime<=0)$('toast').style.display='none';$('brakeMobile').style.display=isMobile&&equippedBrakeSlot()>=0?'block':'none';$('brakeMobile').disabled=brakeTimer>0;$('brakeMobile').textContent=brakeTimer>0?'BRAKE '+Math.ceil(brakeTimer)+'s':'BRAKE';$('phase').textContent=(phase==='collect'?'SCAVENGING':'RETURN TO STATION')+(drillActive?' · DRILL '+Math.floor(DRILL_DIST[shipLevel('s07')]-drillTravel):'');$('phase').className=phase==='collect'?'':'warn';$('timer').textContent=Math.max(0,remaining).toFixed(1)+'s';$('hp').textContent=(shipLevel('s10')>0?'HAL '+Math.ceil((60-shipLevel('s14'))-halTimer)+'s · ':'')+'HULL '+ '◆'.repeat(Math.min(40,maxHull()-hits))+'◇'.repeat(Math.min(40,hits))+(shields?' 🛡'+shields:'');updateTrackerHUD();$('haul').textContent=goldText(haul)+' ◆ · STREAK '+streakCount;$('distance').textContent=Math.round(Math.hypot(player.x,player.y));$('maxdistance').textContent=Math.floor(maxRunDistance);$('distmult').textContent='×'+Math.max(1,maxRunDistance/1000).toFixed(3);const angle=Math.atan2(-player.y,-player.x)*180/Math.PI;$('direction').textContent=phase==='return'?`STATION ${Math.round(angle)}° from right`:'STATION ◉'}
 function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#040b1b';ctx.fillRect(0,0,W,H);const camX=player.x-W/2,camY=player.y-H/2;let gx=Math.floor(camX/110),gy=Math.floor(camY/110);for(let ix=gx;ix<gx+Math.ceil(W/110)+2;ix++)for(let iy=gy;iy<gy+Math.ceil(H/110)+2;iy++){let h=Math.abs((ix*73856093)^(iy*19349663))%100;if(h<43){ctx.fillStyle=h<6?'#7299b9':'#294565';ctx.fillRect(ix*110-camX+(h*17)%90,iy*110-camY+(h*11)%90,h<6?2:1,h<6?2:1)}}
 const sx=station.x-camX,sy=station.y-camY;ctx.save();ctx.translate(sx,sy);ctx.strokeStyle='#49dfeb';ctx.lineWidth=4;ctx.shadowColor='#42d5f4';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(0,0,station.r,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#183c5d';ctx.fillRect(-44,-44,88,88);ctx.fillStyle='#317e9d';ctx.fillRect(-30,-30,60,60);ctx.fillStyle='#86e5ed';ctx.fillRect(-13,-13,26,26);ctx.fillStyle='#d9fbff';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText('REFUEL',0,-94);ctx.restore();
-wreckDraw(camX,camY);
+wreckDraw(camX,camY);stationDraw(camX,camY);
 for(const c of crates){let x=c.x-camX,y=c.y-camY;if(x< -30||y< -30||x>W+30||y>H+30)continue;ctx.save();ctx.translate(x,y);ctx.fillStyle=c.kind==='magma'?'#ff6848':c.kind==='obsidian'?'#ad8de9':c.rare?'#ff9f43':'#e8ba36';ctx.shadowColor=c.kind==='magma'?'#ff4422':c.kind==='obsidian'?'#a48aff':c.rare?'#ffb84b':'#edcc55';ctx.shadowBlur=c.rare?20:8;const s=c.rare?29:22;ctx.fillRect(-s/2,-s/2,s,s);ctx.shadowBlur=0;ctx.strokeStyle='#7c571d';ctx.lineWidth=3;ctx.strokeRect(-s/2,-s/2,s,s);ctx.beginPath();ctx.moveTo(-s/2,0);ctx.lineTo(s/2,0);ctx.moveTo(0,-s/2);ctx.lineTo(0,s/2);ctx.stroke();if(c.rare&&bonusLevel('b18')>0&&Math.hypot(c.x-player.x,c.y-player.y)<300+100*bonusLevel('b18')){ctx.strokeStyle='#88f8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*2);ctx.stroke()}ctx.restore()}
 // Golden asteroids are static obstacles and are drawn over the moving field.
 for(const r of goldenRocks){const x=r.x-camX,y=r.y-camY;if(x<-r.s||y<-r.s||x>W+r.s||y>H+r.s)continue;ctx.fillStyle=r.formationType==='magma'?'#7b342a':r.formationType==='obsidian'?'#38334e':'#a57b30';ctx.shadowColor=r.formationType==='magma'?'#f65c35':r.formationType==='obsidian'?'#9274c5':'#edb94b';ctx.shadowBlur=9;ctx.fillRect(x-r.s/2,y-r.s/2,r.s,r.s);ctx.shadowBlur=0;ctx.fillStyle=r.formationType==='magma'?'#c65a37':r.formationType==='obsidian'?'#696080':'#d6b65f';ctx.fillRect(x-r.s/2+5,y-r.s/2+5,r.s-10,7);ctx.fillStyle=r.formationType==='magma'?'#4c201c':r.formationType==='obsidian'?'#211e35':'#6f5225';ctx.fillRect(x-r.s/2,y+r.s/2-9,r.s,9);}
@@ -1314,6 +1431,7 @@ if(equippedTrackerSlot()>=0){
   ctx.fillStyle=color;ctx.fillText(text,textX,textY);ctx.restore();
  }
 }
+stationTags();
 // Derelict proximity signal: no radar, research requirement, or distant tracking.
 // Each intact wreck within 3,000 world units gets a directional UNKNOWN JUNK tag.
 {
