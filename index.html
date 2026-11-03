@@ -945,6 +945,38 @@ function stationTick(dt,oldX,oldY){
   }
   s.debrisClock=Math.max(0,(s.debrisClock||0)-dt);
  }
+ stationRockCollisions();
+}
+// Asteroids collide with authored station wall tiles, not a circular barrier.
+function stationRockCollisions(){
+ for(const s of abandonedStations){
+  if(Math.abs(s.x-player.x)>2600||Math.abs(s.y-player.y)>1800)continue;
+  for(const rock of rocks){
+   const radius=rock.s*.42;
+   if(Math.abs(rock.x-s.x)>STATION_W*STATION_TILE/2+radius||Math.abs(rock.y-s.y)>STATION_H*STATION_TILE/2+radius)continue;
+   const lx=(rock.x-s.x)/STATION_TILE+STATION_W/2-.5,ly=(rock.y-s.y)/STATION_TILE+STATION_H/2-.5;
+   const reach=radius/STATION_TILE+.6;
+   let best=null;
+   for(let y=Math.max(0,Math.floor(ly-reach));y<=Math.min(STATION_H-1,Math.ceil(ly+reach));y++)
+   for(let x=Math.max(0,Math.floor(lx-reach));x<=Math.min(STATION_W-1,Math.ceil(lx+reach));x++){
+    if(STATION_CELLS[y*STATION_W+x]!=='#')continue;
+    const dx=lx-x,dy=ly-y;
+    const nx=Math.max(-.5,Math.min(.5,dx)),ny=Math.max(-.5,Math.min(.5,dy));
+    let vx=dx-nx,vy=dy-ny,dist=Math.hypot(vx,vy),depth=radius-dist*STATION_TILE;
+    if(depth<=0)continue;
+    if(dist<.00001){
+     const faces=[{d:dx+.5,nx:-1,ny:0},{d:.5-dx,nx:1,ny:0},{d:dy+.5,nx:0,ny:-1},{d:.5-dy,nx:0,ny:1}];
+     faces.sort((a,b)=>a.d-b.d);
+     vx=faces[0].nx;vy=faces[0].ny;dist=1;depth=radius+faces[0].d*STATION_TILE;
+    }
+    if(!best||depth>best.depth)best={nx:vx/dist,ny:vy/dist,depth};
+   }
+   if(!best)continue;
+   rock.x+=best.nx*(best.depth+1);rock.y+=best.ny*(best.depth+1);
+   const inward=rock.vx*best.nx+rock.vy*best.ny;
+   if(inward<0){rock.vx-=1.8*inward*best.nx;rock.vy-=1.8*inward*best.ny}
+  }
+ }
 }
 function stationDraw(camX,camY){
  for(const s of abandonedStations){
