@@ -1488,6 +1488,50 @@ function validOutpost(cx,cy){
  }
  return candidate;
 }
+// Nebula-only obsidian formations: same deterministic, cell-based placement pattern as outposts,
+// with a 3,000-unit separation and independent of the guaranteed obsidian formation.
+const NEBULA_CELL=3600,NEBULA_GAP=3000;
+const nebulaCandidates=new Map(),nebulaSpawned=new Set();
+function nebulaCandidate(cx,cy){
+ const key=cx+','+cy;if(nebulaCandidates.has(key))return nebulaCandidates.get(key);
+ const rnd=chunkRandom(cx+9173,cy-6071),exists=rnd()<.82;
+ const obj=exists?{x:(cx+.18+rnd()*.64)*NEBULA_CELL,y:(cy+.18+rnd()*.64)*NEBULA_CELL,priority:rnd(),key}:null;
+ nebulaCandidates.set(key,obj);return obj;
+}
+function validNebulaPatch(cx,cy){
+ const p=nebulaCandidate(cx,cy);
+ if(!p||!withinWorld(p.x,p.y)||biomeAt(p.x,p.y)!==1)return null;
+ for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+  if(!dx&&!dy)continue;
+  const q=nebulaCandidate(cx+dx,cy+dy);
+  if(q&&withinWorld(q.x,q.y)&&biomeAt(q.x,q.y)===1&&Math.hypot(q.x-p.x,q.y-p.y)<NEBULA_GAP&&(q.priority<p.priority||(q.priority===p.priority&&q.key<p.key)))return null;
+ }
+ return p;
+}
+let nebulaPatchClock=0;
+function updateNebulaPatches(dt){
+ nebulaPatchClock-=dt;if(nebulaPatchClock>0)return;nebulaPatchClock=1;
+ if(biomeAt(player.x,player.y)!==1)return;
+ const cx=Math.floor(player.x/NEBULA_CELL),cy=Math.floor(player.y/NEBULA_CELL);
+ for(let x=cx-1;x<=cx+1;x++)for(let y=cy-1;y<=cy+1;y++){
+  const p=validNebulaPatch(x,y);
+  if(!p||nebulaSpawned.has(p.key)||Math.hypot(p.x-player.x,p.y-player.y)>2000)continue;
+  nebulaSpawned.add(p.key);makeGoldenCache(p.x,p.y,'obsidian');
+ }
+}
+function drawNebulaAtmosphere(){
+ if(biomeAt(player.x,player.y)!==1)return;
+ const radius=Math.max(W,H)*.77;
+ ctx.save();
+ // A dense, purple outer fog restricts long-range sight while leaving the ship readable.
+ const fog=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.10,W/2,H/2,radius);
+ fog.addColorStop(0,'rgba(61,24,87,.03)');
+ fog.addColorStop(.27,'rgba(76,28,111,.18)');
+ fog.addColorStop(.58,'rgba(54,16,91,.58)');
+ fog.addColorStop(1,'rgba(20,5,43,.96)');
+ ctx.fillStyle=fog;ctx.fillRect(0,0,W,H);
+ ctx.restore();
+}
 const disabledOutpostKeys=new Set();
 function updateOutpostField(){
  const cx=Math.floor(player.x/OUTPOST_CELL),cy=Math.floor(player.y/OUTPOST_CELL);
@@ -1564,7 +1608,7 @@ function updateOutposts(dt,oldX,oldY){
  }
 }
 let radarClock=0,radarContacts=[];
-function begin(){radarClock=0;radarContacts=[];if(isMobile&&screen.orientation&&screen.orientation.lock){Promise.resolve().then(()=>screen.orientation.lock('landscape')).catch(()=>{});}abandonedStations=[];stationBands=new Set();wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();generateBiomeMap();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();wreckGenerateRing(0);stationGenerateBand(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
+function begin(){radarClock=0;radarContacts=[];if(isMobile&&screen.orientation&&screen.orientation.lock){Promise.resolve().then(()=>screen.orientation.lock('landscape')).catch(()=>{});}abandonedStations=[];stationBands=new Set();wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();generateBiomeMap();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();nebulaCandidates.clear();nebulaSpawned.clear();nebulaPatchClock=0;wreckGenerateRing(0);stationGenerateBand(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
 function activateDodge(){
  if(!active||dodgeCharges<=0)return;if(wreckDodgeBlocked()){notify('DODGE DISABLED INSIDE DERELICT');return}
  const dx=flightWASD&&!isMobile?(pressedKeys.has('KeyD')-pressedKeys.has('KeyA')):isMobile?joy.x:mouse.x-W/2,dy=flightWASD&&!isMobile?(pressedKeys.has('KeyS')-pressedKeys.has('KeyW')):isMobile?joy.y:mouse.y-H/2;
@@ -1600,7 +1644,7 @@ function finish(success,title){
 let runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};
 function notify(s){$('toast').textContent=s;$('toast').style.display='block';toastTime=2.5}
 let taskDistanceBuffer=0;
-function update(dt){taskDistanceBuffer+=Math.hypot(player.vx,player.vy)*dt;if(taskDistanceBuffer>=75){taskEvent('distance',taskDistanceBuffer);taskDistanceBuffer=0}flightWASD=equipped('b04');brakeTimer=Math.max(0,brakeTimer-dt);const maxDodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);if(dodgeCharges<maxDodgeCharges){dodgeChargeClock+=dt;const interval=(30-2*bonusLevel('b01'))*(isClass('adventurer')?.5:1);while(dodgeChargeClock>=interval&&dodgeCharges<maxDodgeCharges){dodgeChargeClock-=interval;dodgeCharges++}}else dodgeChargeClock=0;dodgeCooldownTimer=dodgeCharges>0?0:Math.max(0,((30-2*bonusLevel('b01'))*(isClass('adventurer')?.5:1))-dodgeChargeClock);slipstreamTimer=Math.max(0,slipstreamTimer-dt);dodgeIFrames=Math.max(0,dodgeIFrames-dt);if(shipLevel('s10')>0){halTimer+=dt;const interval=60-shipLevel('s14');while(halTimer>=interval){halTimer-=interval;if(hits>0){hits--;notify('HAL REPAIRED 1 HULL · '+(maxHull()-hits)+' REMAINING')}}}remaining-=dt;if(remaining<=0){if(phase==='collect'){phase='return';remaining=(45+save.returnfuel*.25+shipLevel('s05')*5)*(isClass('hoarder')?2.5:1);drillUsed=false;drillActive=false;notify('COLLECTION OVER — RETURN TO STATION!')}else{finish(false,'FUEL EXHAUSTED');return}}let dx=flightWASD&&!isMobile?(pressedKeys.has('KeyD')-pressedKeys.has('KeyA')):isMobile?joy.x:mouse.x-W/2,dy=flightWASD&&!isMobile?(pressedKeys.has('KeyS')-pressedKeys.has('KeyW')):isMobile?joy.y:mouse.y-H/2,mag=Math.hypot(dx,dy);if(mag>(flightWASD&&!isMobile?0.01:isMobile?0.08:8)){const acc=105*(1+save.speed*.1)*(slipstreamTimer>0?1+bonusLevel('b14')*.02:1);player.vx+=dx/mag*acc*dt;player.vy+=dy/mag*acc*dt}// No speed cap: aligned thrust never loses acceleration to drag.
+function update(dt){updateNebulaPatches(dt);taskDistanceBuffer+=Math.hypot(player.vx,player.vy)*dt;if(taskDistanceBuffer>=75){taskEvent('distance',taskDistanceBuffer);taskDistanceBuffer=0}flightWASD=equipped('b04');brakeTimer=Math.max(0,brakeTimer-dt);const maxDodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);if(dodgeCharges<maxDodgeCharges){dodgeChargeClock+=dt;const interval=(30-2*bonusLevel('b01'))*(isClass('adventurer')?.5:1);while(dodgeChargeClock>=interval&&dodgeCharges<maxDodgeCharges){dodgeChargeClock-=interval;dodgeCharges++}}else dodgeChargeClock=0;dodgeCooldownTimer=dodgeCharges>0?0:Math.max(0,((30-2*bonusLevel('b01'))*(isClass('adventurer')?.5:1))-dodgeChargeClock);slipstreamTimer=Math.max(0,slipstreamTimer-dt);dodgeIFrames=Math.max(0,dodgeIFrames-dt);if(shipLevel('s10')>0){halTimer+=dt;const interval=60-shipLevel('s14');while(halTimer>=interval){halTimer-=interval;if(hits>0){hits--;notify('HAL REPAIRED 1 HULL · '+(maxHull()-hits)+' REMAINING')}}}remaining-=dt;if(remaining<=0){if(phase==='collect'){phase='return';remaining=(45+save.returnfuel*.25+shipLevel('s05')*5)*(isClass('hoarder')?2.5:1);drillUsed=false;drillActive=false;notify('COLLECTION OVER — RETURN TO STATION!')}else{finish(false,'FUEL EXHAUSTED');return}}let dx=flightWASD&&!isMobile?(pressedKeys.has('KeyD')-pressedKeys.has('KeyA')):isMobile?joy.x:mouse.x-W/2,dy=flightWASD&&!isMobile?(pressedKeys.has('KeyS')-pressedKeys.has('KeyW')):isMobile?joy.y:mouse.y-H/2,mag=Math.hypot(dx,dy);if(mag>(flightWASD&&!isMobile?0.01:isMobile?0.08:8)){const acc=105*(1+save.speed*.1)*(slipstreamTimer>0?1+bonusLevel('b14')*.02:1);player.vx+=dx/mag*acc*dt;player.vy+=dy/mag*acc*dt}// No speed cap: aligned thrust never loses acceleration to drag.
 // Gentle damping only while coasting or changing direction makes braking manageable.
 const moving=mag>(flightWASD&&!isMobile?0.01:isMobile?0.08:8);
 const velocity=Math.hypot(player.vx,player.vy);
@@ -1749,5 +1793,5 @@ if(equipped('b09')||isClass('hacker')){
  });
 }
 if(phase==='return'){let dx=sx-W/2,dy=sy-H/2,dist=Math.hypot(dx,dy);if(dist>110){const a=Math.atan2(dy,dx),px=W/2+Math.cos(a)*Math.min(W,H)*.35,py=H/2+Math.sin(a)*Math.min(W,H)*.35;ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.fillStyle='#6df7ed';ctx.shadowColor='#6df7ed';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-10,-10);ctx.lineTo(-6,0);ctx.lineTo(-10,10);ctx.fill();ctx.restore()}}}
-function loop(t){if(!active)return;const dt=Math.min((t-last)/1000,.04);last=t;update(dt);if(!active)return;radarPing(dt);draw();drawRadar();requestAnimationFrame(loop)}
+function loop(t){if(!active)return;const dt=Math.min((t-last)/1000,.04);last=t;update(dt);if(!active)return;radarPing(dt);draw();drawNebulaAtmosphere();drawRadar();requestAnimationFrame(loop)}
 </script><div id="copyright-notice" style="position:fixed;bottom:5px;right:10px;z-index:9999;pointer-events:none;color:rgba(205,225,235,.55);font:11px Arial,sans-serif;text-shadow:0 1px 2px #00131f">© 2026 Deep Blue. All rights reserved.</div></body></html>
