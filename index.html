@@ -607,6 +607,18 @@ function wreckMake(x,y,seed){
  // Small isolated fragments outside the hull
  [6,-7],[-6,10],[4,9],[11,7]
  ]);
+ // Connect the hand-traced exterior into a SEALED one-tile-thick hull.
+ // Earlier tracing left diagonal steps and the nose/stern detached, creating
+ // unintended entrances. Connect each boundary segment orthogonally.
+ const connect=(path)=>{for(let i=1;i<path.length;i++){let [xx,yy]=path[i-1];const [tx,ty]=path[i];put(xx,yy);
+  while(xx!==tx||yy!==ty){if(xx!==tx)xx+=Math.sign(tx-xx);else yy+=Math.sign(ty-yy);put(xx,yy)}
+ }};
+ // Upper and lower spines meet the swept wings without gaps.
+ connect([[0,-14],[1,-13],[2,-11],[2,-9],[3,-6],[4,-5],[5,-4],[7,-3],[9,-2],[11,-2]]);
+ connect([[0,-14],[-1,-13],[-2,-11],[-3,-8],[-4,-7],[-5,-6],[-6,-5],[-8,-4],[-9,-3],[-11,-2],[-12,-1],[-14,0],[-13,1],[-11,2],[-9,3],[-8,4],[-6,5],[-5,6],[-4,6],[-3,7],[-2,8],[-1,10],[0,12],[1,13]]);
+ connect([[1,13],[2,12],[2,10],[2,8],[3,6],[4,4],[5,3],[7,2],[9,1],[11,1]]);
+ // Right wing is deliberately OPEN between (11,-2) and (11,1).
+ // Broken plates farther east remain isolated debris, not hull entrances.
  // The right-hand wing is the sole broken entry, as in the drawing.
  // Other encounters rotate the ENTIRE unchanged tile blueprint.
  // Four distinct red spawn zones, matching the drawing's shaded patches.
