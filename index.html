@@ -472,7 +472,7 @@ function updateTrackerHUD(){
  const el=$('trackerHUD');
  if(equippedTrackerSlot()<0&&!equipped('b09')&&!isClass('hacker')){el.style.display='none';return}
  el.style.display='block';
- el.innerHTML=equippedTrackerSlot()<0?'':'<strong>◎ ASTEROID TRACKER</strong><div style="color:#ffd27c">GOLDEN · '+trackerReadout('golden')+'</div><div style="color:#c9a5ff">OBSIDIAN · '+trackerReadout('obsidian')+'</div><div style="color:#ff987b">MAGMA · '+trackerReadout('magma')+'</div>';if(equipped('b09')||isClass('hacker'))el.innerHTML+='<strong>▣ OUTPOST RADAR</strong>'+nearestOutposts().map((p,i)=>'<div style="color:#ff838e">#'+(i+1)+' · '+Math.round(p.d).toLocaleString('en-GB')+' units · '+Math.round(Math.atan2(p.o.y-player.y,p.o.x-player.x)*180/Math.PI)+'°</div>').join('');
+ el.innerHTML=equippedTrackerSlot()<0?'':'<strong>◎ ASTEROID TRACKER</strong><div style="color:#ffd27c">GOLDEN · '+trackerReadout('golden')+'</div><div style="color:#c9a5ff">OBSIDIAN · '+trackerReadout('obsidian')+'</div><div style="color:#ff987b">MAGMA · '+trackerReadout('magma')+'</div>';if(equipped('b09')||isClass('hacker')){const targets=nearestOutposts();el.innerHTML+='<strong>▣ OUTPOST RADAR · '+disabledOutpostKeys.size+' DEACTIVATED</strong>'+(targets.length?targets.map((p,i)=>'<div style="color:#ff838e">#'+(i+1)+' · ACTIVE · '+Math.round(p.d).toLocaleString('en-GB')+' units · '+Math.round(Math.atan2(p.o.y-player.y,p.o.x-player.x)*180/Math.PI)+'°</div>').join(''):'<div style="color:#9ce9bd">NO ACTIVE OUTPOSTS IN RADAR RANGE</div>')}
 }
 function bronzeChance(){return .12*luckLevel('l14')/20}
 function siphonChance(){const l=luckLevel('l03');return l?l===10?.75:(.08+(l-1)*.075):0}
@@ -682,6 +682,7 @@ for(const o of outposts){
  ctx.fillStyle=o.active?'#e9233d':'#394452';ctx.fillRect(-29,-29,58,58);
  ctx.shadowBlur=0;ctx.lineWidth=4;ctx.strokeStyle=o.active?'#ff9aa4':'#74808b';ctx.strokeRect(-29,-29,58,58);
  ctx.fillStyle=o.active?'#ffdf77':'#222b35';ctx.fillRect(-9,-9,18,18);
+ if(equipped('b09')||isClass('hacker')){ctx.shadowBlur=0;ctx.font='bold 11px system-ui';ctx.textAlign='center';const label=o.active?'OUTPOST · ACTIVE':'OUTPOST · DEACTIVATED';const w=ctx.measureText(label).width;ctx.fillStyle='rgba(4,11,27,.9)';ctx.fillRect(-w/2-7,-52,w+14,20);ctx.fillStyle=o.active?'#ff9aa4':'#9ce9bd';ctx.fillText(label,0,-38)}
  ctx.restore();
 }
 // Large luminous projectiles remain visible after their source is disabled.
@@ -718,11 +719,11 @@ if(equippedTrackerSlot()>=0){
   ctx.fillStyle=color;ctx.fillText(text,textX,textY);ctx.restore();
  }
 }
-if(equipped('b09')){
+if(equipped('b09')||isClass('hacker')){
  const targets=nearestOutposts();targets.forEach((t,i)=>{
   const a=Math.atan2(t.o.y-player.y,t.o.x-player.x),lane=Math.min(W,H)*(.38+i*.045),px=W/2+Math.cos(a)*lane,py=H/2+Math.sin(a)*lane;
   ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.fillStyle=i?'#ffb6bf':'#ff5367';ctx.beginPath();ctx.moveTo(15,0);ctx.lineTo(-8,-9);ctx.lineTo(-8,9);ctx.fill();ctx.restore();
-  ctx.save();ctx.textAlign='center';ctx.font='bold 12px system-ui';ctx.fillStyle='#ffd5da';ctx.fillText('OUTPOST '+(i+1)+' · '+Math.round(t.d)+'u',Math.max(80,Math.min(W-80,px)),Math.max(40,Math.min(H-30,py-17)));ctx.restore();
+  ctx.save();ctx.textAlign='center';ctx.font='bold 12px system-ui';ctx.fillStyle='#ffd5da';ctx.fillText('OUTPOST '+(i+1)+' · ACTIVE · '+Math.round(t.d)+'u',Math.max(125,Math.min(W-125,px)),Math.max(40,Math.min(H-30,py-17)));ctx.restore();
  });
 }
 if(phase==='return'){let dx=sx-W/2,dy=sy-H/2,dist=Math.hypot(dx,dy);if(dist>110){const a=Math.atan2(dy,dx),px=W/2+Math.cos(a)*Math.min(W,H)*.35,py=H/2+Math.sin(a)*Math.min(W,H)*.35;ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.fillStyle='#6df7ed';ctx.shadowColor='#6df7ed';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-10,-10);ctx.lineTo(-6,0);ctx.lineTo(-10,10);ctx.fill();ctx.restore()}}}
