@@ -734,8 +734,37 @@ function wreckTick(dt,oldX,oldY){
   for(const g of w.gold)if(!g.taken&&touch(g)){g.taken=true;haul+=g.value;notify('DERELICT CARGO · +'+g.value+' GOLD')}
   for(const s of w.scrap)if(!s.taken&&touch(s)){s.taken=true;save.scrap=(Number(save.scrap)||0)+25;persist();notify('DERELICT SALVAGE · +25 SCRAP')}
   for(const core of w.cores)if(!core.taken&&touch(core)){core.taken=true;wreckAwardUpgrade();if(w.cores.every(c=>c.taken)){w.armed=true;w.countdown=WRECK_ESCAPE;notify('SELF-DESTRUCT INITIATED · '+WRECK_ESCAPE+' SECONDS TO ESCAPE');audioSound('ability')}}
-  // Nearby asteroids rebound instead of entering the wreck.
-  for(const rock of rocks){const dx=rock.x-w.x,dy=rock.y-w.y,d=Math.hypot(dx,dy);if(d<WRECK_RADIUS&&d>1){const normalX=dx/d,normalY=dy/d;rock.x=w.x+normalX*(WRECK_RADIUS+rock.s/2);rock.y=w.y+normalY*(WRECK_RADIUS+rock.s/2);const v=rock.vx*normalX+rock.vy*normalY;if(v<0){rock.vx-=1.8*v*normalX;rock.vy-=1.8*v*normalY}}}
+  // Asteroids travel normally through the wreck's surrounding space.
+  // Only the actual solid hull tiles can bounce them; there is NO circular
+  // exclusion field, so the broken wing opening remains accessible.
+  for(const rock of rocks){
+   if(Math.abs(rock.x-w.x)>1200+rock.s||Math.abs(rock.y-w.y)>1000+rock.s)continue;
+   const p=wreckToLocal(w,rock.x,rock.y),radius=rock.s*.42/WRECK_TILE;
+   let best=null;
+   for(const [wx,wy] of w.walls){
+    if(Math.abs(p.x-wx)>radius+.5||Math.abs(p.y-wy)>radius+.5)continue;
+    const nx=Math.max(wx-.5,Math.min(p.x,wx+.5)),ny=Math.max(wy-.5,Math.min(p.y,wy+.5));
+    let dx=p.x-nx,dy=p.y-ny,dist=Math.hypot(dx,dy);
+    if(dist>=radius)continue;
+    if(dist<.0001){
+     // Rock centre is inside a tile: eject toward its closest face.
+     const faces=[{v:p.x-(wx-.5),x:-1,y:0},{v:(wx+.5)-p.x,x:1,y:0},{v:p.y-(wy-.5),x:0,y:-1},{v:(wy+.5)-p.y,x:0,y:1}];
+     faces.sort((a,b)=>a.v-b.v);dx=faces[0].x;dy=faces[0].y;dist=1;
+     const depth=radius+faces[0].v;
+     if(!best||depth>best.depth)best={nx:dx,ny:dy,depth};
+    }else{
+     const depth=radius-dist;
+     if(!best||depth>best.depth)best={nx:dx/dist,ny:dy/dist,depth};
+    }
+   }
+   if(!best)continue;
+   const ca=w.orientation*Math.PI/2,co=Math.cos(ca),si=Math.sin(ca);
+   const nx=best.nx*co-best.ny*si,ny=best.nx*si+best.ny*co;
+   rock.x+=nx*(best.depth*WRECK_TILE+1);
+   rock.y+=ny*(best.depth*WRECK_TILE+1);
+   const inward=rock.vx*nx+rock.vy*ny;
+   if(inward<0){rock.vx-=1.8*inward*nx;rock.vy-=1.8*inward*ny}
+  }
  }
 }
 function wreckDraw(camX,camY){
