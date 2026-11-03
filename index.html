@@ -1643,8 +1643,7 @@ function radarPing(dt){
  const radius=radarRadius(),contacts=[];
  const add=(x,y,color)=>{if(Math.hypot(x-player.x,y-player.y)<=radius)contacts.push({x,y,color})};
  for(const crate of crates)if(!crate.taken)add(crate.x,crate.y,'#f4d54a');
- if(radarDetection()>=2){for(const rock of rocks)add(rock.x,rock.y,'#91b4c5');
-  for(const f of specialFormations)add(f.x,f.y,f.type==='golden'?'#e5ad36':f.type==='obsidian'?'#b47aff':'#ff8951')}
+ if(radarDetection()>=2){for(const f of specialFormations)add(f.x,f.y,f.type==='golden'?'#e5ad36':f.type==='obsidian'?'#b47aff':'#ff8951')}
  if(radarDetection()>=3){for(const w of wrecks)if(!w.destroyed)add(w.x,w.y,'#9da6b2');
   for(const s of abandonedStations)if(!s.destroyed)add(s.x,s.y,'#9da6b2')}
  radarContacts=contacts;
