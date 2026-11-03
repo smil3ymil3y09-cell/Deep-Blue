@@ -568,80 +568,76 @@ const station={x:0,y:0,r:78};const SHIP=64;const PLAYER_SIZE=48;function spawnRo
 /* DERELICT SHIPS: sketch-inspired modular wrecks, 56x56 tiles, run-seeded rings.
    Five wrecks within 10,000 units; ten more in EACH subsequent 5,000-unit ring.
    Only nearby rings are instantiated, so the unbounded world remains efficient. */
-const WRECK_TILE=56,WRECK_RADIUS=820,WRECK_ESCAPE=12;
+const WRECK_TILE=56,WRECK_RADIUS=1150,WRECK_ESCAPE=12;
 let wrecks=[],wreckRings=new Set(),wreckImpactClock=0;
 function wreckRandom(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
 function wreckMake(x,y,seed){
- const rng=wreckRandom(seed),orientation=Math.floor(rng()*4),breach=Math.floor(rng()*4);
- const walls=new Set(),gold=[],scrap=[],cores=[],debris=[];
- const key=(x,y)=>x+','+y,put=(x,y)=>walls.add(key(x,y)),del=(x,y)=>walls.delete(key(x,y));
- // Blueprint: long north/south spine, broad swept horizontal wings and an open
- // central junction. The WHITE cells are navigable corridors, not hull plating.
- // Wall cells are explicitly placed outside the walkable spine and wing lanes.
- for(const sign of [-1,1]){
-  // Narrow pointed vertical nose/tail with one-cell-wide central corridor.
-  for(let y=4;y<=9;y++){const width=y>=8?1:y>=6?2:3;put(-width,sign*y);put(width,sign*y)}
-  put(0,sign*10);
-  // Swept outer wing contour, following the sketch's stepped outline.
-  for(let xx=4;xx<=10;xx++){
-   const outer=xx<=5?3:xx<=7?2:xx<=9?1:0;
-   put(sign*xx,-outer);put(sign*xx,outer);
-  }
-  // Inner wing ribs; preserve the continuous central passage along y=0.
-  for(let xx=5;xx<=8;xx++){if(xx%2===0){put(sign*xx,-1);put(sign*xx,1)}}
-  // Short central upper/lower hull struts, without sealing the main junction.
-  put(sign*3,-3);put(sign*3,3);
- }
- // Interior central ribs: broken segments, not continuous inaccessible walls.
- for(const [xx,yy] of [[-3,-2],[3,-2],[-3,2],[3,2],[-2,-4],[2,-4],[-2,4],[2,4]])put(xx,yy);
- // The drawing's WHITE passages are ONE tile wide. Only the small central
- // junction and designated red cargo bays open into two-tile pockets.
- const corridors=new Set(),open=(x,y)=>corridors.add(key(x,y));
- for(let xx=-10;xx<=10;xx++)open(xx,0);
- for(let yy=-9;yy<=9;yy++)open(0,yy);
- for(let xx=-2;xx<=2;xx++)for(let yy=-1;yy<=1;yy++)open(xx,yy);
- for(const [xx,yy] of [[-1,-7],[1,-7],[-1,7],[1,7],[-1,-5],[1,-5],[-1,5],[1,5],[-2,-2],[2,-2],[-2,2],[2,2],[-1,-2],[1,-2],[-1,2],[1,2]])open(xx,yy);
- // Add dense structural partitions immediately outside the narrow paths,
- // instead of the previous mostly empty 5x5 chamber.
- for(let yy=-8;yy<=8;yy++)for(let xx=-9;xx<=9;xx++){
-  const nearSpine=Math.abs(xx)<=3&&Math.abs(yy)<=9;
-  const nearWings=Math.abs(yy)<=3&&Math.abs(xx)<=9;
-  if((nearSpine||nearWings)&&!corridors.has(key(xx,yy)))put(xx,yy)
- }
- for(const cell of corridors)walls.delete(cell);
- // The four damage variants change ONLY the outer entry opening.
- if(breach===0){for(let xx=8;xx<=10;xx++)for(let yy=-2;yy<=1;yy++)del(xx,yy)}
- if(breach===1){for(let xx=-10;xx<=-8;xx++)for(let yy=-1;yy<=2;yy++)del(xx,yy)}
- if(breach===2){for(let yy=-10;yy<=-8;yy++)for(let xx=-1;xx<=1;xx++)del(xx,yy)}
- if(breach===3){for(let yy=8;yy<=10;yy++)for(let xx=-1;xx<=1;xx++)del(xx,yy)}
- // Accessible red cargo zones, placed within the open vertical spine and
- // central room. Each tile independently has a 75% chance to contain cargo.
- const redCells=[[0,-7],[0,-6],[0,-5],[0,-4],[0,4],[0,5],[0,6],[0,7],
- [-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],[-2,2],[-1,2],[0,2],[1,2],[2,2]];
- for(const [xx,yy] of redCells)if(!walls.has(key(xx,yy))&&rng()<.75)
-  gold.push({x:xx,y:yy,taken:false,value:80+Math.floor(rng()*121)});
- // Blue upgrade cores in the central chamber, reachable from every entry.
- cores.push({x:-1,y:0,taken:false},{x:1,y:0,taken:false});
- // Brown salvage boxes sit along the main wing corridors.
- for(const [xx,yy] of [[-8,0],[-6,0],[6,0],[8,0]])if(!walls.has(key(xx,yy)))
-  scrap.push({x:xx,y:yy,taken:false});
- // Small decorative debris on navigable cells. These never occupy a full tile
- // or become collision geometry: corridors are narrower visually, but passable.
- for(const [xx,yy] of [[-7,0],[-5,0],[5,0],[7,0],[0,-8],[0,-3],[0,3],[0,8],[-2,1],[2,-1]]){
-  if(!walls.has(key(xx,yy)))debris.push({x:xx,y:yy,ox:(rng()<.5?-1:1)*(13+rng()*5),oy:(rng()-.5)*7,rot:rng()*6.28})
- }
- // Validate a connected path from the centre to EVERY pickup tile. If a wall
- // would strand a reward, remove it rather than leaving inaccessible loot.
- const reachable=new Set([key(0,0)]),queue=[[0,0]];
- for(let i=0;i<queue.length;i++){const [cx,cy]=queue[i];
-  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy,k=key(nx,ny);
-   if(Math.abs(nx)>10||Math.abs(ny)>10||walls.has(k)||reachable.has(k))continue;
-   reachable.add(k);queue.push([nx,ny])
-  }
- }
- for(const item of [...gold,...scrap,...cores])if(!reachable.has(key(item.x,item.y))){
-  let cx=item.x,cy=item.y;while(cx!==0||cy!==0){del(cx,cy);if(cx!==0)cx-=Math.sign(cx);else cy-=Math.sign(cy)}del(0,0)
- }
+ const rng=wreckRandom(seed),orientation=Math.floor(rng()*4),breach=0;
+ const walls=new Set(),key=(x,y)=>x+','+y;
+ const put=(x,y)=>walls.add(key(x,y)),del=(x,y)=>walls.delete(key(x,y));
+ const line=(points)=>points.forEach(([x,y])=>put(x,y));
+ // Hand-traced wall squares from the supplied graph-paper sketch.
+ // NO procedural filling, mirroring, or generated internal partitions.
+ // Coordinates use the centre of the drawing as (0,0); one cell = 56px.
+ line([
+ // Vertical upper nose and stepped shoulder
+ [0,-14],[-1,-13],[1,-13],[-2,-11],[2,-11],[-3,-8],[2,-9],
+ [-4,-7],[-3,-6],[-2,-6],[-1,-6],[1,-7],[2,-7],[3,-6],
+ // Left swept wing upper edge
+ [-5,-6],[-6,-5],[-8,-4],[-9,-3],[-11,-2],[-12,-1],[-14,0],
+ // Left swept wing lower edge
+ [-13,1],[-11,2],[-9,3],[-8,4],[-6,5],[-5,6],
+ // Lower vertical spine and shoulder
+ [-4,6],[-3,6],[-2,6],[-1,6],[1,6],[2,6],[3,6],
+ [-3,7],[-2,8],[2,8],[-1,10],[2,10],[-1,11],[2,11],
+ [0,12],[2,12],[1,13],
+ // Right wing top contour, with the fractured outer wing
+ [4,-5],[5,-4],[7,-3],[9,-2],[11,-2],[13,-4],[14,-5],
+ [15,-6],[16,-7],[17,-6],[17,-5],[16,-4],
+ // Right wing bottom contour
+ [4,4],[5,3],[7,2],[9,1],[11,1],[13,2],
+ // Interior ribs and short partitions exactly as separate wall blocks
+ [-8,0],[-7,0],[-6,0],[-5,-1],[-5,0],[-5,1],[-4,0],[-3,0],
+ [-5,-2],[-3,-2],[-2,-2],[-1,-2],[1,-2],[2,-2],
+ [-3,2],[-2,2],[-1,2],[1,2],[2,2],[3,2],
+ [4,-1],[4,1],[6,-1],[6,1],[8,-1],[8,1],
+ // Broken-off plates on the far-right wing
+ [16,0],[18,0],[16,3],[18,3],[15,5],[17,5],
+ [13,6],[16,6],[14,7],[17,7],
+ // Small isolated fragments outside the hull
+ [6,-7],[-6,10],[4,9],[11,7]
+ ]);
+ // The right-hand wing is the sole broken entry, as in the drawing.
+ // Other encounters rotate the ENTIRE unchanged tile blueprint.
+ // Four distinct red spawn zones, matching the drawing's shaded patches.
+ const redCells=[];
+ const redZone=(coords)=>{for(const cell of coords)redCells.push(cell)};
+ redZone([[0,-12],[0,-11],[0,-10],[0,-9],[0,-8]]);
+ redZone([[-3,-5],[-2,-5],[-1,-5],[-3,-4],[-2,-4],[-1,-4]]);
+ redZone([[0,-2],[0,-1],[1,-1],[0,0],[1,0]]);
+ redZone([[-2,2],[-1,3],[0,3],[-2,3],[-1,4],[0,4]]);
+ redZone([[0,10],[1,10],[0,11],[1,11],[1,12]]);
+ // Each red square independently rolls the requested 75% cargo chance.
+ const gold=redCells.filter(([xx,yy])=>!walls.has(key(xx,yy))&&rng()<.75)
+  .map(([xx,yy])=>({x:xx,y:yy,taken:false,value:80+Math.floor(rng()*121)}));
+ // Two blue core positions and four brown salvage caches.
+ const cores=[{x:-2,y:0,taken:false},{x:1,y:1,taken:false}];
+ const scrap=[[-11,0],[-7,1],[7,0],[11,0]].filter(([xx,yy])=>!walls.has(key(xx,yy)))
+  .map(([xx,yy])=>({x:xx,y:yy,taken:false}));
+ // Small, damaging fragments placed at corridor edges, never whole tiles.
+ const debris=[[-10,0],[-7,-1],[-4,1],[0,-7],[1,5],[0,8],[5,0],[9,0]]
+  .filter(([xx,yy])=>!walls.has(key(xx,yy)))
+  .map(([xx,yy])=>({x:xx,y:yy,ox:(rng()<.5?-1:1)*16,oy:(rng()-.5)*6,rot:rng()*6.28}));
+ // Check reachability without changing the traced wall map.
+ const reach=new Set([key(0,0)]),q=[[0,0]];
+ for(let i=0;i<q.length;i++){const [cx,cy]=q[i];for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+  const nx=cx+dx,ny=cy+dy,k=key(nx,ny);
+  if(Math.abs(nx)>18||Math.abs(ny)>14||walls.has(k)||reach.has(k))continue;
+  reach.add(k);q.push([nx,ny])
+ }}
+ // Don't spawn unreachable loot; never carve new corridors into the sketch.
+ for(const list of [gold,scrap,cores])for(let i=list.length-1;i>=0;i--)
+  if(!reach.has(key(list[i].x,list[i].y)))list.splice(i,1);
  return{x,y,seed,orientation,breach,walls:[...walls].map(s=>s.split(',').map(Number)),gold,scrap,cores,debris,elapsed:0,armed:false,countdown:WRECK_ESCAPE,destroyed:false,damageClock:0,announced:false};
 }
 function wreckGenerateRing(ring){
