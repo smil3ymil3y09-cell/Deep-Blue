@@ -652,7 +652,7 @@ function joyStop(e){if(joy.id!==null&&e.pointerId!==joy.id)return;joy.active=fal
 joystick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;joy.active=true;joystick.setPointerCapture(e.pointerId);joyMove(e)});
 joystick.addEventListener('pointermove',e=>{if(joy.active&&e.pointerId===joy.id){e.preventDefault();joyMove(e)}});
 joystick.addEventListener('pointerup',joyStop);joystick.addEventListener('pointercancel',joyStop);
-const station={x:0,y:0,r:78};const SHIP=64;const PLAYER_SIZE=48;function spawnRock(x,y){const mult=[1,2,3][Math.floor(Math.random()*3)],s=SHIP*mult;rocks.push({x,y,s,vx:rand(-22,22),vy:rand(-22,22),rot:rand(0,Math.PI*2)})}function spawnCrate(x,y){crates.push({x,y,rare:false,rot:rand(0,6.28)})}
+const station={x:0,y:0,r:78};const SHIP=64;const PLAYER_SIZE=48;function spawnRock(x,y){if(!withinWorld(x,y))return;const mult=[1,2,3][Math.floor(Math.random()*3)],s=SHIP*mult;rocks.push({x,y,s,vx:rand(-22,22),vy:rand(-22,22),rot:rand(0,Math.PI*2)})}function spawnCrate(x,y){if(!withinWorld(x,y))return;crates.push({x,y,rare:false,rot:rand(0,6.28)})}
 // Asteroids occupy persistent, seeded 520-unit chunks. Every nearby chunk is populated
 // immediately, so unlimited ship acceleration cannot outrun a timed spawn queue.
 
@@ -771,6 +771,7 @@ function wreckGenerateRing(ring){
  for(let i=0;i<count;i++){const angle=offset+(i+(rng()-.5)*.5)*Math.PI*2/count;
   const distance=Math.sqrt(inner*inner+rng()*(outer*outer-inner*inner));
   const x=Math.cos(angle)*distance,y=Math.sin(angle)*distance;
+  if(!withinWorld(x,y))continue;
   if(specialFormations.some(f=>Math.hypot(f.x-x,f.y-y)<f.clearRadius+WRECK_RADIUS))continue;
   wrecks.push(wreckMake(x,y,Math.floor(rng()*4294967295)));
   // Chunks can predate a newly generated wreck. Remove any already-spawned
@@ -994,6 +995,7 @@ function stationGenerateBand(band){
    const angle=(i+rng()*.65)*Math.PI*2/count+rng()*Math.PI*2/count;
    const dist=Math.sqrt(inner*inner+rng()*(outer*outer-inner*inner));
    const x=Math.cos(angle)*dist,y=Math.sin(angle)*dist;
+   if(!withinWorld(x,y))continue;
    if(wrecks.some(w=>Math.hypot(w.x-x,w.y-y)<3100)||abandonedStations.some(s=>Math.hypot(s.x-x,s.y-y)<3400)||specialFormations.some(f=>Math.hypot(f.x-x,f.y-y)<(f.clearRadius||0)+2400))continue;
    candidate={x,y};break
   }
@@ -1174,6 +1176,74 @@ function keepRockOutsideGoldenZone(r){
  if(inward<0){r.vx-=1.8*inward*nx;r.vy-=1.8*inward*ny;}
 }
 let expeditionSeed=0;function freshExpeditionSeed(){if(globalThis.crypto?.getRandomValues){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return bytes[0]>>>0}return Math.floor(Math.random()*4294967296)>>>0}
+
+const BIOME_LIMIT=30000,BIOME_SAFE=10000,BIOME_STEP=375,BIOME_SIDE=160;
+const BIOME_COLORS=['#31546b','#a45ac7','#e2a05c','#b6c5ed'];
+let biomeGrid=null,biomeTargets=[],biomeCoverage=[],biomeDominants=[];
+const withinWorld=(x,y)=>x*x+y*y<BIOME_LIMIT*BIOME_LIMIT;
+function biomeHash(x,y,s){let n=(Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(s,1442695041))|0;n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967296}
+function biomeNoise(x,y,scale,seed){
+ const xx=x/scale,yy=y/scale,ix=Math.floor(xx),iy=Math.floor(yy),u=xx-ix,v=yy-iy,s=u*u*(3-2*u),t=v*v*(3-2*v);
+ const a=biomeHash(ix,iy,seed),b=biomeHash(ix+1,iy,seed),d=biomeHash(ix,iy+1,seed),e=biomeHash(ix+1,iy+1,seed);
+ return (a+(b-a)*s)*(1-t)+(d+(e-d)*s)*t;
+}
+function biomeAt(x,y){
+ if(x*x+y*y<BIOME_SAFE*BIOME_SAFE)return 0;
+ if(!withinWorld(x,y))return -1;
+ if(!biomeGrid)return 0;
+ return biomeGrid[Math.min(BIOME_SIDE-1,Math.max(0,Math.floor((y+BIOME_LIMIT)/BIOME_STEP)))*BIOME_SIDE+Math.min(BIOME_SIDE-1,Math.max(0,Math.floor((x+BIOME_LIMIT)/BIOME_STEP)))];
+}
+function generateBiomeMap(){
+ const rng=wreckRandom((expeditionSeed^0xb10be777)>>>0);
+ biomeDominants=[1,2,3];for(let i=2;i>0;i--){const j=Math.floor(rng()*(i+1));[biomeDominants[i],biomeDominants[j]]=[biomeDominants[j],biomeDominants[i]]}
+ const free=30+rng()*10;let a,b,d;
+ do{a=65/3+rng()*20-10;b=65/3+rng()*20-10;d=100-free-a-b}while(Math.abs(d-65/3)>10);
+ biomeTargets=[free,a,b,d];
+ const n=BIOME_SIDE**2,grid=new Int8Array(n).fill(-1),scores=new Float32Array(n*4),valid=[];
+ const seeds=Array.from({length:14},()=>Math.floor(rng()*1e9)),directions=[-2.35,-.79,Math.PI/2];
+ for(let y=0;y<BIOME_SIDE;y++)for(let x=0;x<BIOME_SIDE;x++){
+  const wx=(x+.5)*BIOME_STEP-BIOME_LIMIT,wy=(y+.5)*BIOME_STEP-BIOME_LIMIT,dist=Math.hypot(wx,wy),idx=y*BIOME_SIDE+x;
+  if(dist<BIOME_SAFE){grid[idx]=0;continue}if(dist>=BIOME_LIMIT)continue;
+  valid.push(idx);
+  const ax=wx+(biomeNoise(wx,wy,7500,seeds[0])-.5)*5200,ay=wy+(biomeNoise(wx,wy,7500,seeds[1])-.5)*5200,angle=Math.atan2(-wy,wx);
+  for(let type=0;type<4;type++){
+   const pref=type===0?0:Math.max(...directions.map((v,i)=>biomeDominants[i]===type?Math.cos(angle-v):-2));
+   scores[idx*4+type]=biomeNoise(ax,ay,10500,seeds[type+2])*.66+biomeNoise(ax,ay,3700,seeds[type+6])*.26+biomeNoise(ax,ay,1200,seeds[type+10])*.08+pref*.15;
+  }
+ }
+ const bias=[.05,0,0,0];
+ for(let pass=0;pass<95;pass++){
+  const counts=[0,0,0,0];
+  for(const idx of valid){let winner=0,best=-Infinity;for(let k=0;k<4;k++){const s=scores[idx*4+k]+bias[k];if(s>best){best=s;winner=k}}grid[idx]=winner;counts[winner]++}
+  for(let k=0;k<4;k++)bias[k]+=(biomeTargets[k]-counts[k]*100/valid.length)*.0015;
+ }
+ // Remove small connected weather components (minimum 0.5% of whole circular universe).
+ const minCells=Math.ceil(Math.PI*BIOME_LIMIT**2*.005/BIOME_STEP**2);
+ for(let pass=0;pass<4;pass++){
+  const seen=new Uint8Array(n),small=[];
+  for(const start of valid){
+   if(grid[start]===0||seen[start])continue;
+   const type=grid[start],queue=[start];seen[start]=1;
+   for(let q=0;q<queue.length;q++){
+    const at=queue[q],x=at%BIOME_SIDE,y=(at/BIOME_SIDE)|0;
+    for(const next of [x?at-1:-1,x<BIOME_SIDE-1?at+1:-1,y?at-BIOME_SIDE:-1,y<BIOME_SIDE-1?at+BIOME_SIDE:-1])
+     if(next>=0&&!seen[next]&&grid[next]===type){seen[next]=1;queue.push(next)}
+   }
+   if(queue.length<minCells)small.push(queue);
+  }
+  if(!small.length)break;
+  for(const component of small){
+   const counts=[0,0,0,0];
+   for(const idx of component){const x=idx%BIOME_SIDE,y=(idx/BIOME_SIDE)|0;for(const next of [x?idx-1:-1,x<BIOME_SIDE-1?idx+1:-1,y?idx-BIOME_SIDE:-1,y<BIOME_SIDE-1?idx+BIOME_SIDE:-1])if(next>=0&&grid[next]>=0&&grid[next]!==grid[idx])counts[grid[next]]++}
+   const type=counts.indexOf(Math.max(...counts));
+   for(const idx of component)grid[idx]=type;
+  }
+ }
+ const counts=[0,0,0,0];for(const idx of valid)counts[grid[idx]]++;
+ biomeCoverage=counts.map(v=>v*100/valid.length);biomeGrid=grid;
+ console.info('Biome map', {seed:expeditionSeed,targets:biomeTargets,coverage:biomeCoverage,dominants:biomeDominants});
+}
+
 function chunkRandom(cx,cy){let seed=(Math.imul(cx,73856093)^Math.imul(cy,19349663)^expeditionSeed^0x51f15e5d)>>>0;return ()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}}
 // Keep natural asteroids at least 128px clear of the derelict's visible
 // floor AND physical wall tiles, accounting for the asteroid's own radius.
@@ -1194,7 +1264,7 @@ function rockOverlapsWreck(x,y,rockRadius=0){
  }
  return false
 }
-function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=7+Math.floor(random()*4);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*3));const x=(cx+0.08+random()*.84)*ROCK_CHUNK,y=(cy+0.08+random()*.84)*ROCK_CHUNK;if(Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2))continue;rocks.push({x,y,s,vx:(random()-.5)*44,vy:(random()-.5)*44,rot:random()*6.28,chunk:key})}}
+function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=7+Math.floor(random()*4);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*3));const x=(cx+0.08+random()*.84)*ROCK_CHUNK,y=(cy+0.08+random()*.84)*ROCK_CHUNK;if(!withinWorld(x,y)||Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2))continue;rocks.push({x,y,s,vx:(random()-.5)*44,vy:(random()-.5)*44,rot:random()*6.28,chunk:key})}}
 function maintainRockField(x,y){const cx=Math.floor(x/ROCK_CHUNK),cy=Math.floor(y/ROCK_CHUNK);for(let ix=cx-ROCK_RADIUS;ix<=cx+ROCK_RADIUS;ix++)for(let iy=cy-ROCK_RADIUS;iy<=cy+ROCK_RADIUS;iy++)ensureRockChunk(ix,iy)}
 function refreshRockField(oldX,oldY){const travel=Math.hypot(player.x-oldX,player.y-oldY);const steps=Math.min(48,Math.max(1,Math.ceil(travel/(ROCK_CHUNK*.55))));for(let i=0;i<=steps;i++){const t=i/steps;maintainRockField(oldX+(player.x-oldX)*t,oldY+(player.y-oldY)*t)}const cx=Math.floor(player.x/ROCK_CHUNK),cy=Math.floor(player.y/ROCK_CHUNK);rocks=rocks.filter(r=>{const parts=r.chunk.split(',');return Math.abs(+parts[0]-cx)<=ROCK_RADIUS+1&&Math.abs(+parts[1]-cy)<=ROCK_RADIUS+1});rockChunks=new Set(rocks.map(r=>r.chunk))}
 
@@ -1394,7 +1464,7 @@ function outpostCandidate(cx,cy){
  outpostCells.set(key,obj);return obj;
 }
 function validOutpost(cx,cy){
- const candidate=outpostCandidate(cx,cy);if(!candidate)return null;
+ const candidate=outpostCandidate(cx,cy);if(!candidate||!withinWorld(candidate.x,candidate.y))return null;
  if(Math.hypot(candidate.x,candidate.y)<1100)return null;
  for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){
   if(!ox&&!oy)continue;
@@ -1481,7 +1551,7 @@ function updateOutposts(dt,oldX,oldY){
  }
 }
 let radarClock=0,radarContacts=[];
-function begin(){radarClock=0;radarContacts=[];if(isMobile&&screen.orientation&&screen.orientation.lock){Promise.resolve().then(()=>screen.orientation.lock('landscape')).catch(()=>{});}abandonedStations=[];stationBands=new Set();wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();wreckGenerateRing(0);stationGenerateBand(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
+function begin(){radarClock=0;radarContacts=[];if(isMobile&&screen.orientation&&screen.orientation.lock){Promise.resolve().then(()=>screen.orientation.lock('landscape')).catch(()=>{});}abandonedStations=[];stationBands=new Set();wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();generateBiomeMap();active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();generateSpecialFormations();wreckGenerateRing(0);stationGenerateBand(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);for(let i=0;i<17;i++)spawnAround(150,1100,(x,y)=>{if(!overlapsGoldenClearance(x,y,20))spawnCrate(x,y)});$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';last=performance.now();requestAnimationFrame(loop)}
 function activateDodge(){
  if(!active||dodgeCharges<=0)return;if(wreckDodgeBlocked()){notify('DODGE DISABLED INSIDE DERELICT');return}
  const dx=flightWASD&&!isMobile?(pressedKeys.has('KeyD')-pressedKeys.has('KeyA')):isMobile?joy.x:mouse.x-W/2,dy=flightWASD&&!isMobile?(pressedKeys.has('KeyS')-pressedKeys.has('KeyW')):isMobile?joy.y:mouse.y-H/2;
@@ -1533,13 +1603,13 @@ spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;if(Math.random()<.12+save.
  for(let j=0;j<count;j++){const a=Math.random()*6.283,r=j?Math.sqrt(Math.random())*Math.min(200,30+count*5):0;spawnCrate(x+Math.cos(a)*r,y+Math.sin(a)*r)}
  });
  if(luckLevel('l14')>0&&Math.random()<bronzeChance()&&bronzeRocks.length<60)spawnAround(500,1450,(x,y)=>{
- if(overlapsGoldenClearance(x,y,60))return;
+ if(!withinWorld(x,y)||overlapsGoldenClearance(x,y,60))return;
  const a=Math.random()*Math.PI*2,spd=rand(140,270);
  bronzeRocks.push({x,y,s:60,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,bronze:true})
  })}refreshRockField(oldX,oldY);
-for(const r of rocks){r.x+=r.vx*dt;r.y+=r.vy*dt;keepRockOutsideGoldenZone(r)}crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
+for(const r of rocks){r.x+=r.vx*dt;r.y+=r.vy*dt;if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
  for(const b of bronzeRocks){b.x+=b.vx*dt;b.y+=b.vy*dt;if(Math.hypot(b.x-player.x,b.y-player.y)<=100+bonusLevel('b17')*5)haul+=dt*(3+luckLevel('l15')*.1)*(1+.01*profitLevel('p08'))}
- bronzeRocks=bronzeRocks.filter(b=>Math.abs(b.x-player.x)<2300&&Math.abs(b.y-player.y)<2300);
+ bronzeRocks=bronzeRocks.filter(b=>withinWorld(b.x,b.y)&&Math.abs(b.x-player.x)<2300&&Math.abs(b.y-player.y)<2300);
 for(let i=crates.length-1;i>=0;i--){const c=crates[i];const reach=37+(equipped('b16')?bonusLevel('b16')*10:0);if(Math.abs(c.x-player.x)<reach&&Math.abs(c.y-player.y)<reach){collectCrate(c);crates.splice(i,1)}}checkFormationCompletions();
 
 const allRocks=[...rocks,...goldenRocks.filter(r=>Math.abs(r.x-player.x)<r.s/2+60&&Math.abs(r.y-player.y)<r.s/2+60),...bronzeRocks];const radius=17*shipScale();
@@ -1572,6 +1642,7 @@ function drawRadar(){
  ctx.save();ctx.translate(cx,cy);ctx.fillStyle='rgba(5,18,35,.91)';ctx.strokeStyle='#396c86';ctx.lineWidth=2;
  ctx.beginPath();ctx.arc(0,0,size/2,0,Math.PI*2);ctx.fill();ctx.stroke();
  ctx.save();ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.clip();
+ if(biomeGrid){const tile=5;for(let yy=-r;yy<r;yy+=tile)for(let xx=-r;xx<r;xx+=tile){if(xx*xx+yy*yy>r*r)continue;const kind=biomeAt(player.x+(xx+tile/2)/r*range,player.y+(yy+tile/2)/r*range);if(kind!==0){ctx.globalAlpha=kind<0?.7:.38;ctx.fillStyle=kind<0?'#03030c':BIOME_COLORS[kind];ctx.fillRect(xx,yy,tile+1,tile+1)}}ctx.globalAlpha=1;}
  ctx.strokeStyle='rgba(91,159,180,.28)';ctx.lineWidth=1;
  for(const k of [.33,.66,1]){ctx.beginPath();ctx.arc(0,0,r*k,0,Math.PI*2);ctx.stroke()}
  ctx.beginPath();ctx.moveTo(-r,0);ctx.lineTo(r,0);ctx.moveTo(0,-r);ctx.lineTo(0,r);ctx.stroke();
