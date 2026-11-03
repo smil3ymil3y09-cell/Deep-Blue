@@ -518,10 +518,12 @@ const RADAR_RESEARCH=[
 {id:'r03',name:'Ping Frequency',max:10,base:500,r:1.3,desc:'Reduce ping interval from 5 to 0.5 seconds.',x:2380,y:2370,req:[['r01',1]]},
 {id:'r04',name:'Detection Level',max:2,prices:[300,900],desc:'Level 2 detects asteroids; level 3 detects derelicts and stations.',x:2720,y:2560,req:[['r01',1]]}];
 const RADAR_BY_ID=Object.fromEntries(RADAR_RESEARCH.map(n=>[n.id,n]));
-const radarLevel=id=>Math.max(0,Math.min(RADAR_BY_ID[id].max,Number(save.radarLevels?.[id])||0));
+// Opt-in radar test mode. Does not modify saved upgrades or cloud account data.
+const radarTestMode=new URLSearchParams(location.search).get('radar-test')==='1';
+const radarLevel=id=>radarTestMode?RADAR_BY_ID[id].max:Math.max(0,Math.min(RADAR_BY_ID[id].max,Number(save.radarLevels?.[id])||0));
 const radarCost=(n,l)=>n.prices?n.prices[l]:Math.ceil(n.base*Math.pow(n.r,l)-1e-9);
 const radarUnlocked=n=>n.req.every(([id,l])=>radarLevel(id)>=l);
-function purchaseRadar(id){const n=RADAR_BY_ID[id],l=radarLevel(id);if(l>=n.max||!radarUnlocked(n))return;const cost=radarCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.radarLevels[id]=l+1;((save.radarSpent??={})[id]??=[]).push(cost);persist();updateMenu()}
+function purchaseRadar(id){if(radarTestMode)return;const n=RADAR_BY_ID[id],l=radarLevel(id);if(l>=n.max||!radarUnlocked(n))return;const cost=radarCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.radarLevels[id]=l+1;((save.radarSpent??={})[id]??=[]).push(cost);persist();updateMenu()}
 function refundRadar(id){const n=RADAR_BY_ID[id],l=radarLevel(id);if(!l)return;if(RADAR_RESEARCH.some(other=>other.req.some(([dep,need])=>dep===id&&radarLevel(other.id)>0&&l-1<need)))return;const cost=(save.radarSpent?.[id]||[]).pop()??radarCost(n,l-1);save.gold=floorGold(save.gold+Math.floor(cost*500)/1000);save.radarLevels[id]=l-1;persist();updateMenu()}
 const radarRadius=()=>500+380*radarLevel('r02');
 const radarInterval=()=>5-.45*radarLevel('r03');
