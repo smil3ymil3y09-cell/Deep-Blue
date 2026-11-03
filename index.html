@@ -528,8 +528,8 @@ function shipRequirements(n){return n.req.length?n.req.map(([id,l])=>SHIP_BY_ID[
 function renderShipTree(){
  const holder=$('shipnodes');if(!holder)return;
  if(!holder.children.length){
-  const core=document.createElement('button');core.className='shipnode researchcore';core.dataset.id='core';core.style.left='1350px';core.style.top='1790px';core.onclick=()=>{selectedShip='core';renderShipTree()};holder.appendChild(core);
-  for(const n of [...SHIP_RESEARCH,...LUCK_RESEARCH,...BONUS_RESEARCH,...PROFIT_RESEARCH,...RADAR_RESEARCH]){const btn=document.createElement('button');btn.className='shipnode';btn.style.left=n.x+'px';btn.style.top=n.y+'px';btn.dataset.id=n.id;btn.onclick=()=>{selectedShip=n.id;renderShipTree()};holder.appendChild(btn)}
+  const core=document.createElement('button');core.className='shipnode researchcore';core.dataset.id='core';core.style.left='1350px';core.style.top='1790px';core.onclick=()=>{selectedShip='core';renderShipTree();$('shipdetail').scrollIntoView({behavior:'smooth',block:'center'})};holder.appendChild(core);
+  for(const n of [...SHIP_RESEARCH,...LUCK_RESEARCH,...BONUS_RESEARCH,...PROFIT_RESEARCH,...RADAR_RESEARCH]){const btn=document.createElement('button');btn.className='shipnode';btn.style.left=n.x+'px';btn.style.top=n.y+'px';btn.dataset.id=n.id;btn.onclick=()=>{selectedShip=n.id;renderShipTree();$('shipdetail').scrollIntoView({behavior:'smooth',block:'center'})};holder.appendChild(btn)}
   const svg=$('shiplines');
   function connect(x1,y1,x2,y2,color='#578abf',width=3){const line=document.createElementNS('http://www.w3.org/2000/svg','line');for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:color,'stroke-width':width}))line.setAttribute(k,v);svg.appendChild(line)}
   connect(1350,1724,1350,1560,'#6cdcf4',5);
@@ -586,6 +586,9 @@ treeVP.addEventListener('pointerdown',e=>{
   e.stopPropagation();
   selectedShip=node.dataset.id;
   renderShipTree();
+  // The detail panel is BELOW the tall constellation viewport. On phones a
+  // selected node otherwise only flashes blue, with no visible feedback.
+  requestAnimationFrame(()=>$('shipdetail').scrollIntoView({behavior:'smooth',block:'center'}));
   return;
  }
  panPointer={id:e.pointerId,x:e.clientX,y:e.clientY};
