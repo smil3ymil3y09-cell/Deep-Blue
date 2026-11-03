@@ -637,9 +637,30 @@ function wreckMake(x,y,seed){
  const scrap=[[-11,0],[-7,1],[7,0],[11,0]].filter(([xx,yy])=>!walls.has(key(xx,yy)))
   .map(([xx,yy])=>({x:xx,y:yy,taken:false}));
  // Small, damaging fragments placed at corridor edges, never whole tiles.
- const debris=[[-10,0],[-7,-1],[-4,1],[0,-7],[1,5],[0,8],[5,0],[9,0]]
-  .filter(([xx,yy])=>!walls.has(key(xx,yy)))
-  .map(([xx,yy])=>({x:xx,y:yy,ox:(rng()<.5?-1:1)*16,oy:(rng()-.5)*6,rot:rng()*6.28}));
+ // Seeded per-wreck debris: different positions every encounter, but always
+ // leave a ship-sized passage. Only use spacious, reachable deck pockets.
+ const debris=[],occupied=[...gold,...scrap,...cores];
+ const candidateCells=[];
+ for(let yy=-11;yy<=11;yy++)for(let xx=-12;xx<=10;xx++){
+  if(walls.has(key(xx,yy)))continue;
+  // Stay within the actual corridors rather than open space outside the hull.
+  const deck=(Math.abs(xx)<=2&&Math.abs(yy)<=11)||(Math.abs(yy)<=2&&xx>=-12&&xx<=10);
+  if(!deck||occupied.some(p=>Math.hypot(p.x-xx,p.y-yy)<1.5))continue;
+  // Need at least one adjacent navigable tile for a reliable bypass.
+  const free=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>!walls.has(key(xx+dx,yy+dy))).length;
+  if(free<3)continue;
+  candidateCells.push([xx,yy])
+ }
+ // Shuffle deterministically so the wreck layout remains stable during a run.
+ for(let i=candidateCells.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[candidateCells[i],candidateCells[j]]=[candidateCells[j],candidateCells[i]]}
+ for(const [xx,yy] of candidateCells){
+  if(debris.length>=9)break;
+  if(debris.some(d=>Math.hypot(d.x-xx,d.y-yy)<2.4))continue;
+  // Edge-mounted small debris leaves the central line of travel unobstructed.
+  const horizontal=Math.abs(xx)>Math.abs(yy),side=rng()<.5?-1:1;
+  const ox=horizontal?0:side*20,oy=horizontal?side*20:0;
+  debris.push({x:xx,y:yy,ox,oy,rot:(rng()-.5)*.35})
+ }
  // Check reachability without changing the traced wall map.
  const reach=new Set([key(0,0)]),q=[[0,0]];
  for(let i=0;i<q.length;i++){const [cx,cy]=q[i];for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
