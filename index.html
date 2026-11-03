@@ -681,7 +681,10 @@ function wreckGenerateRing(ring){
   const distance=Math.sqrt(inner*inner+rng()*(outer*outer-inner*inner));
   const x=Math.cos(angle)*distance,y=Math.sin(angle)*distance;
   if(specialFormations.some(f=>Math.hypot(f.x-x,f.y-y)<f.clearRadius+WRECK_RADIUS))continue;
-  wrecks.push(wreckMake(x,y,Math.floor(rng()*4294967295)))
+  wrecks.push(wreckMake(x,y,Math.floor(rng()*4294967295)));
+  // Chunks can predate a newly generated wreck. Remove any already-spawned
+  // rocks violating the same clearance, rather than leaving rocks inside.
+  rocks=rocks.filter(r=>!rockOverlapsWreck(r.x,r.y,r.s/2))
  }
 }
 function wreckNearby(w,margin=1100){return !w.destroyed&&Math.hypot(player.x-w.x,player.y-w.y)<WRECK_RADIUS+margin}
@@ -881,7 +884,25 @@ function keepRockOutsideGoldenZone(r){
 }
 let expeditionSeed=0;function freshExpeditionSeed(){if(globalThis.crypto?.getRandomValues){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return bytes[0]>>>0}return Math.floor(Math.random()*4294967296)>>>0}
 function chunkRandom(cx,cy){let seed=(Math.imul(cx,73856093)^Math.imul(cy,19349663)^expeditionSeed^0x51f15e5d)>>>0;return ()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296}}
-function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=7+Math.floor(random()*4);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*3));const x=(cx+0.08+random()*.84)*ROCK_CHUNK,y=(cy+0.08+random()*.84)*ROCK_CHUNK;if(Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2))continue;rocks.push({x,y,s,vx:(random()-.5)*44,vy:(random()-.5)*44,rot:random()*6.28,chunk:key})}}
+// Keep natural asteroids at least 128px clear of the derelict's visible
+// floor AND physical wall tiles, accounting for the asteroid's own radius.
+function rockOverlapsWreck(x,y,rockRadius=0){
+ for(const w of wrecks){
+  if(w.destroyed||Math.abs(x-w.x)>1350+rockRadius||Math.abs(y-w.y)>1100+rockRadius)continue;
+  const p=wreckToLocal(w,x,y),r=(128+rockRadius)/WRECK_TILE;
+  const nearTile=(tx,ty)=>{const dx=Math.max(Math.abs(p.x-tx)-.5,0),dy=Math.max(Math.abs(p.y-ty)-.5,0);return Math.hypot(dx,dy)<r};
+  // This predicate mirrors the actual deck drawn by wreckDraw.
+  for(let yy=-13;yy<=12;yy++)for(let xx=-14;xx<=11;xx++){
+   const spine=Math.abs(xx)<=2&&Math.abs(yy)<=12;
+   const middle=Math.abs(xx)<=5&&Math.abs(yy)<=5;
+   const wing=Math.abs(yy)<=Math.max(0,3-Math.floor(Math.abs(xx)/5))&&xx>=-14&&xx<=11;
+   if((spine||middle||wing)&&nearTile(xx,yy))return true;
+  }
+  for(const [wx,wy] of w.walls)if(nearTile(wx,wy))return true;
+ }
+ return false
+}
+function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=7+Math.floor(random()*4);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*3));const x=(cx+0.08+random()*.84)*ROCK_CHUNK,y=(cy+0.08+random()*.84)*ROCK_CHUNK;if(Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2))continue;rocks.push({x,y,s,vx:(random()-.5)*44,vy:(random()-.5)*44,rot:random()*6.28,chunk:key})}}
 function maintainRockField(x,y){const cx=Math.floor(x/ROCK_CHUNK),cy=Math.floor(y/ROCK_CHUNK);for(let ix=cx-ROCK_RADIUS;ix<=cx+ROCK_RADIUS;ix++)for(let iy=cy-ROCK_RADIUS;iy<=cy+ROCK_RADIUS;iy++)ensureRockChunk(ix,iy)}
 function refreshRockField(oldX,oldY){const travel=Math.hypot(player.x-oldX,player.y-oldY);const steps=Math.min(48,Math.max(1,Math.ceil(travel/(ROCK_CHUNK*.55))));for(let i=0;i<=steps;i++){const t=i/steps;maintainRockField(oldX+(player.x-oldX)*t,oldY+(player.y-oldY)*t)}const cx=Math.floor(player.x/ROCK_CHUNK),cy=Math.floor(player.y/ROCK_CHUNK);rocks=rocks.filter(r=>{const parts=r.chunk.split(',');return Math.abs(+parts[0]-cx)<=ROCK_RADIUS+1&&Math.abs(+parts[1]-cy)<=ROCK_RADIUS+1});rockChunks=new Set(rocks.map(r=>r.chunk))}
 
