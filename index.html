@@ -1558,18 +1558,31 @@ function makeStarryGoldDeposit(p){
  const formation={x:p.x,y:p.y,type:'golden',starry:true,clearRadius:330,crates:[]};
  specialFormations.push(formation);
  const phase=rng()*Math.PI*2;
+ const depositRocks=[];
  for(let i=0;i<30;i++){
   const angle=phase+i*Math.PI*2/30+(rng()-.5)*.17;
   // Leave several large open breaks through the formation.
   if(i%9===0||i%9===1||rng()<.28)continue;
   const radius=100+rng()*155,size=25+rng()*65;
-  goldenRocks.push({x:p.x+Math.cos(angle)*radius,y:p.y+Math.sin(angle)*radius,s:size,vx:0,vy:0,golden:true,formationType:'golden'});
+  const rock={x:p.x+Math.cos(angle)*radius,y:p.y+Math.sin(angle)*radius,s:size,vx:0,vy:0,golden:true,formationType:'golden'};
+  depositRocks.push(rock);goldenRocks.push(rock);
  }
  const count=3+luckLevel('l07'),value=12+2*luckLevel('l06');
  for(let i=0;i<count;i++){
-  const angle=phase+i*Math.PI*2/count+(rng()-.5)*.2;
-  const radius=30+rng()*115;
-  const crate={x:p.x+Math.cos(angle)*radius,y:p.y+Math.sin(angle)*radius,rare:true,kind:'golden',value,rot:0,formation:true};
+  // Check against this deposit's actual rocks, not just its open-looking gaps.
+  // The 28-unit clearance leaves room for the ship to reach each crate.
+  let spot=null;
+  for(let attempt=0;attempt<120;attempt++){
+   const angle=phase+rng()*Math.PI*2;
+   const radius=attempt<80?35+rng()*260:5+rng()*40;
+   const x=p.x+Math.cos(angle)*radius,y=p.y+Math.sin(angle)*radius;
+   if(depositRocks.some(r=>Math.abs(x-r.x)<r.s/2+28&&Math.abs(y-r.y)<r.s/2+28))continue;
+   if(formation.crates.some(other=>Math.hypot(x-other.x,y-other.y)<36))continue;
+   spot={x,y};break;
+  }
+  // The outer rim is unobstructed if random placement exhausts its attempts.
+  if(!spot){const angle=phase+i*Math.PI*2/count;spot={x:p.x+Math.cos(angle)*390,y:p.y+Math.sin(angle)*390}}
+  const crate={x:spot.x,y:spot.y,rare:true,kind:'golden',value,rot:0,formation:true};
   formation.crates.push(crate);crates.push(crate);
  }
 }
