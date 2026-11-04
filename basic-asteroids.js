@@ -65,8 +65,33 @@ function rockOverlapsWreck(x,y,rockRadius=0){
  return false
 }
 function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=BASIC_ASTEROID_CONFIG.minPerChunk+Math.floor(random()*BASIC_ASTEROID_CONFIG.additionalPerChunk);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*BASIC_ASTEROID_CONFIG.sizeSteps));const x=(cx+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK,y=(cy+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK;if(!withinWorld(x,y)||altarContains(x,y)||Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2))continue;rocks.push({x,y,s,vx:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,vy:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,rot:random()*6.28,chunk:key})}}
-function maintainRockField(x,y){const cx=Math.floor(x/ROCK_CHUNK),cy=Math.floor(y/ROCK_CHUNK);for(let ix=cx-ROCK_RADIUS;ix<=cx+ROCK_RADIUS;ix++)for(let iy=cy-ROCK_RADIUS;iy<=cy+ROCK_RADIUS;iy++)ensureRockChunk(ix,iy)}
-function refreshRockField(oldX,oldY){const travel=Math.hypot(player.x-oldX,player.y-oldY);const steps=Math.min(48,Math.max(1,Math.ceil(travel/(ROCK_CHUNK*.55))));for(let i=0;i<=steps;i++){const t=i/steps;maintainRockField(oldX+(player.x-oldX)*t,oldY+(player.y-oldY)*t)}const cx=Math.floor(player.x/ROCK_CHUNK),cy=Math.floor(player.y/ROCK_CHUNK);rocks=rocks.filter(r=>{const parts=r.chunk.split(',');return Math.abs(+parts[0]-cx)<=ROCK_RADIUS+1&&Math.abs(+parts[1]-cy)<=ROCK_RADIUS+1});rockChunks=new Set(rocks.map(r=>r.chunk))}
+// Load enough existing-density chunks to cover the wider mobile camera.
+// Desktop retains the original 2-chunk loading and 3-chunk retention radius.
+function rockChunkViewRadius(){
+ if(!isMobile)return {x:ROCK_RADIUS,y:ROCK_RADIUS};
+ return {
+  x:Math.max(ROCK_RADIUS,Math.ceil((W/(2*CAMERA_SCALE))/ROCK_CHUNK+1)),
+  y:Math.max(ROCK_RADIUS,Math.ceil((H/(2*CAMERA_SCALE))/ROCK_CHUNK+1))
+ };
+}
+function maintainRockField(x,y){
+ const cx=Math.floor(x/ROCK_CHUNK),cy=Math.floor(y/ROCK_CHUNK),radius=rockChunkViewRadius();
+ for(let ix=cx-radius.x;ix<=cx+radius.x;ix++)for(let iy=cy-radius.y;iy<=cy+radius.y;iy++)ensureRockChunk(ix,iy);
+}
+function refreshRockField(oldX,oldY){
+ const travel=Math.hypot(player.x-oldX,player.y-oldY);
+ const steps=Math.min(48,Math.max(1,Math.ceil(travel/(ROCK_CHUNK*.55))));
+ for(let i=0;i<=steps;i++){
+  const t=i/steps;
+  maintainRockField(oldX+(player.x-oldX)*t,oldY+(player.y-oldY)*t);
+ }
+ const cx=Math.floor(player.x/ROCK_CHUNK),cy=Math.floor(player.y/ROCK_CHUNK),radius=rockChunkViewRadius();
+ rocks=rocks.filter(r=>{
+  const parts=r.chunk.split(',');
+  return Math.abs(+parts[0]-cx)<=radius.x+1&&Math.abs(+parts[1]-cy)<=radius.y+1;
+ });
+ rockChunks=new Set(rocks.map(r=>r.chunk));
+}
 
 // Called once per existing 0.16-second spawn check (shared with bronze spawns).
 function spawnOrdinaryResourceTick(){
