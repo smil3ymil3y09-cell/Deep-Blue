@@ -1529,7 +1529,7 @@ function updateNebulaAtmosphere(){
  if(!nebulaOverlay){
   nebulaOverlay=document.createElement('div');
   nebulaOverlay.id='nebulaPodFog';
-  nebulaOverlay.style.cssText='position:fixed;inset:0;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .45s ease;background:radial-gradient(ellipse at 50% 50%,rgba(56,18,83,.10) 0%,rgba(68,18,107,.30) 18%,rgba(54,11,86,.80) 38%,rgba(22,3,39,.96) 70%,rgba(12,1,28,.99) 100%)';
+  nebulaOverlay.style.cssText='position:fixed;inset:0;z-index:2147483000;pointer-events:none;opacity:0;transition:opacity .45s ease;background:radial-gradient(circle at 50% 50%,rgba(9,2,18,0) 0%,rgba(9,2,18,.04) 9%,rgba(11,2,22,.62) 17%,rgba(8,1,17,.94) 24%,rgba(5,0,12,.995) 34%,rgba(4,0,10,1) 46%,rgba(4,0,10,1) 100%)';
   document.body.appendChild(nebulaOverlay);
  }
  nebulaOverlay.style.opacity=active&&biomeAt(player.x,player.y)===1?'1':'0';
