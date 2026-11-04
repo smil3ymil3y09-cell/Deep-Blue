@@ -1441,7 +1441,8 @@ function updateTrackerHUD(){
  el.style.display='block';
  el.innerHTML=equippedTrackerSlot()<0?'':'<strong>◎ ASTEROID TRACKER</strong><div style="color:#ffd27c">GOLDEN · '+trackerReadout('golden')+'</div><div style="color:#c9a5ff">OBSIDIAN · '+trackerReadout('obsidian')+'</div><div style="color:#ff987b">MAGMA · '+trackerReadout('magma')+'</div>';if(equipped('b09')||isClass('hacker')){const targets=nearestOutposts();el.innerHTML+='<strong>▣ OUTPOST RADAR · '+disabledOutpostKeys.size+' DEACTIVATED</strong>'+(targets.length?targets.map((p,i)=>'<div style="color:#ff838e">#'+(i+1)+' · ACTIVE · '+Math.round(p.d).toLocaleString('en-GB')+' units · '+Math.round(Math.atan2(p.o.y-player.y,p.o.x-player.x)*180/Math.PI)+'°</div>').join(''):'<div style="color:#9ce9bd">NO ACTIVE OUTPOSTS IN RADAR RANGE</div>')}
 }
-function bronzeChance(){return .12*luckLevel('l14')/20}
+function bronzeChanceAtLevelOne(){return .12/20}
+function bronzeChance(){return bronzeChanceAtLevelOne()*luckLevel('l14')}
 function siphonChance(){const l=luckLevel('l03');return l?l===10?.75:(.08+(l-1)*.075):0}
 function collectCrate(c){runTaskStats.crates++;taskEvent('crates');if(['golden','obsidian','magma'].includes(c.kind)){runTaskStats[c.kind]++;taskEvent(c.kind)}
  const kind=c.kind||'ordinary';let value=c.value||1;value+=kind==='golden'?2*profitLevel('p05'):kind==='obsidian'?5*profitLevel('p06'):kind==='magma'?10*profitLevel('p07'):profitLevel('p01');if(kind==='golden')value*=1+.1*profitLevel('p11');if(kind==='obsidian')value*=1+.1*profitLevel('p12');if(kind==='magma')value*=1+.1*profitLevel('p13');if(streakCount>=15&&Math.random()<siphonChance())value*=3;
@@ -1678,13 +1679,17 @@ spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;if(Math.random()<.12+save.
  const count=cluster?1+luckLevel('l02'):1;
  for(let j=0;j<count;j++){const a=Math.random()*6.283,r=j?Math.sqrt(Math.random())*Math.min(200,30+count*5):0;spawnCrate(x+Math.cos(a)*r,y+Math.sin(a)*r)}
  });
- // The belt independently grants 200% of level-one bronze spawn density, even without research.
- const beltBronzeChance=biomeAt(player.x,player.y)===2?.12/20*2:0;
- if(Math.random()<1-(1-bronzeChance())*(1-beltBronzeChance)&&bronzeRocks.length<60)spawnAround(500,1450,(x,y)=>{
+ // Independent bronze population in the belt: twice the level-one spawn chance.
+ // Spawn inside the nearby playfield, rather than 500-1450 units away where
+ // moving bronze asteroids usually despawn before ever entering the viewport.
+ const inBelt=biomeAt(player.x,player.y)===2;
+ const beltBronzeChance=inBelt?bronzeChanceAtLevelOne()*2:0;
+ if(Math.random()<1-(1-bronzeChance())*(1-beltBronzeChance)&&bronzeRocks.length<60)spawnAround(inBelt?170:500,inBelt?Math.min(600,Math.max(W,H)*.58):1450,(x,y)=>{
  if(!withinWorld(x,y)||overlapsGoldenClearance(x,y,60))return;
  const a=Math.random()*Math.PI*2,spd=rand(140,270);
  bronzeRocks.push({x,y,s:60,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,bronze:true})
- })}refreshRockField(oldX,oldY);
+ })
+}refreshRockField(oldX,oldY);
 const beltRockSpeed=biomeAt(player.x,player.y)===2?2:1;
 for(const r of rocks){r.x+=r.vx*dt*beltRockSpeed;r.y+=r.vy*dt*beltRockSpeed;if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
  for(const b of bronzeRocks){b.x+=b.vx*dt;b.y+=b.vy*dt;if(Math.hypot(b.x-player.x,b.y-player.y)<=100+bonusLevel('b17')*5)haul+=dt*(3+luckLevel('l15')*.1)*(1+.01*profitLevel('p08'))}
