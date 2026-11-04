@@ -1775,7 +1775,7 @@ $('brakeMobile').onclick=activateBrake;addEventListener('keydown',e=>{if(!active
 if(!isMobile){cv.addEventListener('pointermove',e=>{if(!flightWASD){mouse.x=e.clientX;mouse.y=e.clientY}});cv.addEventListener('pointerdown',e=>{if(!flightWASD){mouse.x=e.clientX;mouse.y=e.clientY}})}
 function finish(success,title){
  if(!active)return;
- active=false;if(altarButton)altarButton.style.display='none';if(altarMessage)altarMessage.style.display='none';$('canvas').style.transform='';audioStopAmbience();if(!success&&title==='SHIP DESTROYED')audioSound('death');else if(success)audioSound('return');
+ active=false;if(nebulaOverlay)nebulaOverlay.style.opacity='0';if(nebulaTimerMirror)nebulaTimerMirror.style.display='none';if(altarButton)altarButton.style.display='none';if(altarMessage)altarMessage.style.display='none';$('canvas').style.transform='';audioStopAmbience();if(!success&&title==='SHIP DESTROYED')audioSound('death');else if(success)audioSound('return');
  const distanceMultiplier=Math.max(1,maxRunDistance/1000)*(1+.02*profitLevel('p03'))*(isClass('hoarder')?2:1);
  const hullMultiplier=(save.hullbonus?1+(maxHull()-hits)*0.1:1)*((equipped('b05')||isClass('brute'))?1+(maxHull()-hits)*.1:1);
  const formationMultiplier=Math.pow(1.5,(bonusLevel('b22')?formationCounts.golden:0)+(bonusLevel('b23')?formationCounts.obsidian:0))*(bonusLevel('b24')&&formationCounts.magma>0?2:1);
