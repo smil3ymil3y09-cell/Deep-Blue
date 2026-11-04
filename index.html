@@ -654,7 +654,7 @@ function joyStop(e){if(joy.id!==null&&e.pointerId!==joy.id)return;joy.active=fal
 joystick.addEventListener('pointerdown',e=>{e.preventDefault();joy.id=e.pointerId;joy.active=true;joystick.setPointerCapture(e.pointerId);joyMove(e)});
 joystick.addEventListener('pointermove',e=>{if(joy.active&&e.pointerId===joy.id){e.preventDefault();joyMove(e)}});
 joystick.addEventListener('pointerup',joyStop);joystick.addEventListener('pointercancel',joyStop);
-const station={x:0,y:0,r:78};const SHIP=64;const PLAYER_SIZE=48;function spawnRock(x,y){if(!withinWorld(x,y))return;const mult=[1,2,3][Math.floor(Math.random()*3)],s=SHIP*mult;rocks.push({x,y,s,vx:Math.cos(Math.atan2(player.y-y,player.x-x))*rand(18,30),vy:Math.sin(Math.atan2(player.y-y,player.x-x))*rand(18,30),rot:rand(0,Math.PI*2)})}function spawnCrate(x,y){if(!withinWorld(x,y)||altarContains(x,y))return;crates.push({x,y,rare:false,rot:rand(0,6.28)})}
+const station={x:0,y:0,r:78};const SHIP=64;const PLAYER_SIZE=48;function spawnRock(x,y){if(!withinWorld(x,y))return;const mult=[1,2,3][Math.floor(Math.random()*3)],s=SHIP*mult;rocks.push({x,y,s,vx:rand(-22,22),vy:rand(-22,22),rot:rand(0,Math.PI*2)})}function spawnCrate(x,y){if(!withinWorld(x,y)||altarContains(x,y))return;crates.push({x,y,rare:false,rot:rand(0,6.28)})}
 // Asteroids occupy persistent, seeded 520-unit chunks. Every nearby chunk is populated
 // immediately, so unlimited ship acceleration cannot outrun a timed spawn queue.
 
@@ -1336,7 +1336,7 @@ function rockOverlapsWreck(x,y,rockRadius=0){
  }
  return false
 }
-function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=7+Math.floor(random()*4);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*3));const x=(cx+0.08+random()*.84)*ROCK_CHUNK,y=(cy+0.08+random()*.84)*ROCK_CHUNK;if(!withinWorld(x,y)||altarContains(x,y)||Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2))continue;rocks.push({x,y,s,vx:Math.cos(Math.atan2(player.y-y,player.x-x))*(14+random()*16),vy:Math.sin(Math.atan2(player.y-y,player.x-x))*(14+random()*16),rot:random()*6.28,chunk:key})}}
+function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=7+Math.floor(random()*4);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*3));const x=(cx+0.08+random()*.84)*ROCK_CHUNK,y=(cy+0.08+random()*.84)*ROCK_CHUNK;if(!withinWorld(x,y)||altarContains(x,y)||Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2))continue;rocks.push({x,y,s,vx:(random()-.5)*44,vy:(random()-.5)*44,rot:random()*6.28,chunk:key})}}
 function maintainRockField(x,y){const cx=Math.floor(x/ROCK_CHUNK),cy=Math.floor(y/ROCK_CHUNK);for(let ix=cx-ROCK_RADIUS;ix<=cx+ROCK_RADIUS;ix++)for(let iy=cy-ROCK_RADIUS;iy<=cy+ROCK_RADIUS;iy++)ensureRockChunk(ix,iy)}
 function refreshRockField(oldX,oldY){const travel=Math.hypot(player.x-oldX,player.y-oldY);const steps=Math.min(48,Math.max(1,Math.ceil(travel/(ROCK_CHUNK*.55))));for(let i=0;i<=steps;i++){const t=i/steps;maintainRockField(oldX+(player.x-oldX)*t,oldY+(player.y-oldY)*t)}const cx=Math.floor(player.x/ROCK_CHUNK),cy=Math.floor(player.y/ROCK_CHUNK);rocks=rocks.filter(r=>{const parts=r.chunk.split(',');return Math.abs(+parts[0]-cx)<=ROCK_RADIUS+1&&Math.abs(+parts[1]-cy)<=ROCK_RADIUS+1});rockChunks=new Set(rocks.map(r=>r.chunk))}
 
