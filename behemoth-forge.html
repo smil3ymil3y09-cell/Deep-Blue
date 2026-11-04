@@ -57,7 +57,7 @@ draw()}
 function exactWreckTile(ctx,px,py,t,kind,x,y,neighbors){
  ctx.save();
  if(kind==='wall'){ctx.translate(px+t/2,py+t/2);const px=-t/2,py=-t/2;ctx.fillStyle='#08131f';ctx.fillRect(px-3,py-3,t+6,t+6);
-   ctx.fillStyle=w.armed?'#71343d':'#354c60';ctx.fillRect(px+2,py+2,t-4,t-4);
+   ctx.fillStyle='#354c60';ctx.fillRect(px+2,py+2,t-4,t-4);
    ctx.fillStyle='#4e6c80';ctx.fillRect(px+5,py+5,t-10,7);
    ctx.fillStyle='#24394c';ctx.fillRect(px+6,py+16,t-12,t-23);
    ctx.fillStyle='rgba(165,196,206,.36)';ctx.fillRect(px+8,py+18,t-16,2);
