@@ -56,6 +56,7 @@ else{if(t.spawn)t.spawn=null;else if(t.object)t.object=null;else if(t.decor)t.de
 draw()}
 function exactWreckTile(ctx,px,py,t,kind,x,y,neighbors){
  ctx.save();
+ const displaySize=t;ctx.translate(px,py);ctx.scale(displaySize/56,displaySize/56);px=0;py=0;t=56;
  if(kind==='wall'){ctx.translate(px+t/2,py+t/2);const px=-t/2,py=-t/2;ctx.fillStyle='#08131f';ctx.fillRect(px-3,py-3,t+6,t+6);
    ctx.fillStyle='#354c60';ctx.fillRect(px+2,py+2,t-4,t-4);
    ctx.fillStyle='#4e6c80';ctx.fillRect(px+5,py+5,t-10,7);
@@ -63,12 +64,12 @@ function exactWreckTile(ctx,px,py,t,kind,x,y,neighbors){
    ctx.fillStyle='rgba(165,196,206,.36)';ctx.fillRect(px+8,py+18,t-16,2);
    ctx.fillStyle='#9db4bb';ctx.fillRect(px+8,py+8,4,4);ctx.fillRect(px+t-12,py+8,4,4);
    ctx.fillStyle='#172635';ctx.fillRect(px+8,py+t-12,4,4);ctx.fillRect(px+t-12,py+t-12,4,4);
-const isWall=(x,y)=>neighbors[x+','+y]||false;ctx.strokeStyle='rgba(91,176,204,.55)';
+const isWall=(dx,dy)=>neighbors[dx+','+dy]||false;ctx.strokeStyle='rgba(91,176,204,.55)';
    ctx.lineWidth=2;ctx.beginPath();
-   if(!isWall(x,y-1)){ctx.moveTo(px+3,py+2);ctx.lineTo(px+t-3,py+2)}
-   if(!isWall(x,y+1)){ctx.moveTo(px+3,py+t-2);ctx.lineTo(px+t-3,py+t-2)}
-   if(!isWall(x-1,y)){ctx.moveTo(px+2,py+3);ctx.lineTo(px+2,py+t-3)}
-   if(!isWall(x+1,y)){ctx.moveTo(px+t-2,py+3);ctx.lineTo(px+t-2,py+t-3)}
+   if(!isWall(0,-1)){ctx.moveTo(px+3,py+2);ctx.lineTo(px+t-3,py+2)}
+   if(!isWall(0,1)){ctx.moveTo(px+3,py+t-2);ctx.lineTo(px+t-3,py+t-2)}
+   if(!isWall(-1,0)){ctx.moveTo(px+2,py+3);ctx.lineTo(px+2,py+t-3)}
+   if(!isWall(1,0)){ctx.moveTo(px+t-2,py+3);ctx.lineTo(px+t-2,py+t-3)}
 ctx.stroke();}
  else{const check=Math.abs(x*13+y*7)%5;ctx.fillStyle=check===0?'#182b3b':'#152635';ctx.fillRect(px,py,t,t);
    ctx.strokeStyle='rgba(85,123,144,.18)';ctx.lineWidth=1;
@@ -80,7 +81,7 @@ if(kind==='entrance'){ctx.strokeStyle='#4cb2c5';ctx.lineWidth=2;ctx.strokeRect(p
 function exactWreckObject(ctx,px,py,t,id){
  ctx.save();
  try{
-  ctx.translate(px+t/2,py+t/2);
+  ctx.translate(px+t/2,py+t/2);ctx.scale(t/56,t/56);
   if(id==='core'){
    ctx.shadowColor='#4fd9ff';ctx.shadowBlur=20;
    ctx.fillStyle='#173b57';ctx.fillRect(-23,-23,46,46);
@@ -139,7 +140,7 @@ function draw(){
  // Grid overlay is intentionally last.
  for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
  const px=(x-viewX)*cell,py=(y-viewY)*cell;
-  if($('grid').checked){ctx.strokeStyle='#8eb8d329';ctx.lineWidth=.5;ctx.strokeRect(px+.25,py+.25,cell-.5,cell-.5)}
+  if($('grid').checked){ctx.strokeStyle='rgba(114,165,193,.25)';ctx.lineWidth=1;ctx.strokeRect(Math.round(px)+.5,Math.round(py)+.5,Math.max(1,Math.round(cell)-1),Math.max(1,Math.round(cell)-1))}
  }
 }
 function cellAt(e){const r=canvas.getBoundingClientRect();return{x:Math.floor(viewX+(e.clientX-r.left)/r.width*canvas.width/zoom),y:Math.floor(viewY+(e.clientY-r.top)/r.height*canvas.height/zoom)}}
