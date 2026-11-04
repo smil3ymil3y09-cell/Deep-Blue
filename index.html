@@ -1678,12 +1678,15 @@ spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;if(Math.random()<.12+save.
  const count=cluster?1+luckLevel('l02'):1;
  for(let j=0;j<count;j++){const a=Math.random()*6.283,r=j?Math.sqrt(Math.random())*Math.min(200,30+count*5):0;spawnCrate(x+Math.cos(a)*r,y+Math.sin(a)*r)}
  });
- if(luckLevel('l14')>0&&Math.random()<bronzeChance()&&bronzeRocks.length<60)spawnAround(500,1450,(x,y)=>{
+ // The belt independently grants 200% of level-one bronze spawn density, even without research.
+ const beltBronzeChance=biomeAt(player.x,player.y)===2?.12/20*2:0;
+ if(Math.random()<1-(1-bronzeChance())*(1-beltBronzeChance)&&bronzeRocks.length<60)spawnAround(500,1450,(x,y)=>{
  if(!withinWorld(x,y)||overlapsGoldenClearance(x,y,60))return;
  const a=Math.random()*Math.PI*2,spd=rand(140,270);
  bronzeRocks.push({x,y,s:60,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,bronze:true})
  })}refreshRockField(oldX,oldY);
-for(const r of rocks){r.x+=r.vx*dt;r.y+=r.vy*dt;if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
+const beltRockSpeed=biomeAt(player.x,player.y)===2?2:1;
+for(const r of rocks){r.x+=r.vx*dt*beltRockSpeed;r.y+=r.vy*dt*beltRockSpeed;if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
  for(const b of bronzeRocks){b.x+=b.vx*dt;b.y+=b.vy*dt;if(Math.hypot(b.x-player.x,b.y-player.y)<=100+bonusLevel('b17')*5)haul+=dt*(3+luckLevel('l15')*.1)*(1+.01*profitLevel('p08'))}
  bronzeRocks=bronzeRocks.filter(b=>withinWorld(b.x,b.y)&&Math.abs(b.x-player.x)<2300&&Math.abs(b.y-player.y)<2300);
 for(let i=crates.length-1;i>=0;i--){const c=crates[i];const reach=37+(equipped('b16')?bonusLevel('b16')*10:0);if(Math.abs(c.x-player.x)<reach&&Math.abs(c.y-player.y)<reach){collectCrate(c);crates.splice(i,1)}}checkFormationCompletions();
