@@ -1216,7 +1216,7 @@ function generateAltar(){
   const angle=rng()*Math.PI*2,dist=13000+rng()*13500;
   const x=Math.cos(angle)*dist,y=Math.sin(angle)*dist;
   const kind=biomeAt(x,y);
-  if(kind<1||kind>3)continue;
+  if(kind<0||kind>3)continue;
   const radius=450;
   let contained=true;
   for(let j=0;j<12;j++){const a=j*Math.PI/6;if(biomeAt(x+Math.cos(a)*radius,y+Math.sin(a)*radius)!==kind){contained=false;break}}
@@ -1225,7 +1225,7 @@ function generateAltar(){
  if(!altar){ // A small pocket is preferable to losing the altar in unusually fragmented maps.
   for(let i=0;i<700;i++){
    const a=rng()*Math.PI*2,d=13000+rng()*13000,x=Math.cos(a)*d,y=Math.sin(a)*d;
-   if(biomeAt(x,y)>0&&!specialFormations.some(f=>Math.hypot(f.x-x,f.y-y)<450+f.clearRadius+100)){altar={x,y,radius:450};break}
+   if(biomeAt(x,y)>=0&&!specialFormations.some(f=>Math.hypot(f.x-x,f.y-y)<450+f.clearRadius+100)){altar={x,y,radius:450};break}
   }
  }
 }
@@ -1255,6 +1255,18 @@ function updateAltar(dt){
 }
 function generateBiomeMap(){
  const rng=wreckRandom((expeditionSeed^0xb10be777)>>>0);
+ // Rare 1% mono-biome expedition; preserve the 10,000-unit safe core.
+ if(rng()<.01){
+  const kind=Math.floor(rng()*4),grid=new Int8Array(BIOME_SIDE*BIOME_SIDE).fill(-1);
+  for(let y=0;y<BIOME_SIDE;y++)for(let x=0;x<BIOME_SIDE;x++){
+   const wx=(x+.5)*BIOME_STEP-BIOME_LIMIT,wy=(y+.5)*BIOME_STEP-BIOME_LIMIT;
+   const dist=Math.hypot(wx,wy);
+   if(dist<BIOME_LIMIT)grid[y*BIOME_SIDE+x]=dist<BIOME_SAFE?0:kind;
+  }
+  biomeGrid=grid;biomeTargets=[0,0,0,0];biomeTargets[kind]=100;
+  biomeCoverage=biomeTargets.slice();biomeDominants=[kind,kind,kind];
+  return;
+ }
  biomeDominants=[1,2,3];for(let i=2;i>0;i--){const j=Math.floor(rng()*(i+1));[biomeDominants[i],biomeDominants[j]]=[biomeDominants[j],biomeDominants[i]]}
  const free=30+rng()*10;let a,b,d;
  do{a=65/3+rng()*20-10;b=65/3+rng()*20-10;d=100-free-a-b}while(Math.abs(d-65/3)>10);
