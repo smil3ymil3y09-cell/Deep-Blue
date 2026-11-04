@@ -1819,17 +1819,24 @@ spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;const starryCrateMultiplie
  const count=cluster?1+luckLevel('l02'):1;
  for(let j=0;j<count;j++){const a=Math.random()*6.283,r=j?Math.sqrt(Math.random())*Math.min(200,30+count*5):0;spawnCrate(x+Math.cos(a)*r,y+Math.sin(a)*r)}
  });
- // Independent bronze population in the belt: twice the level-one spawn chance.
- // Spawn inside the nearby playfield, rather than 500-1450 units away where
- // moving bronze asteroids usually despawn before ever entering the viewport.
+ // Bronze asteroids in the belt have a 3.5% baseline chance per spawn check.
+ // Spawn just outside the visible screen, so their approach can be seen naturally.
  const inBelt=biomeAt(player.x,player.y)===2;
- const beltBronzeChance=inBelt?bronzeChanceAtLevelOne()*2:0;
- if(Math.random()<1-(1-bronzeChance())*(1-beltBronzeChance)&&bronzeRocks.length<60)spawnAround(inBelt?350:500,inBelt?Math.max(800,Math.max(W,H)*.75):1450,(x,y)=>{
+ const beltBronzeChance=inBelt?.035:0;
+ if(Math.random()<1-(1-bronzeChance())*(1-beltBronzeChance)&&bronzeRocks.length<60){
+ const spawnBronze=(x,y)=>{
  if(!withinWorld(x,y)||altarContains(x,y)||overlapsGoldenClearance(x,y,60))return;
  // Aim at the player's position at spawn time; no homing after launch.
  const a=Math.atan2(player.y-y,player.x-x),spd=rand(140,270);
  bronzeRocks.push({x,y,s:60,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,bronze:true})
- })
+ };
+ if(inBelt){
+  const angle=rand(0,Math.PI*2),cx=Math.cos(angle),cy=Math.sin(angle);
+  const screenEdge=Math.min((W/2+100)/Math.max(.0001,Math.abs(cx)),(H/2+100)/Math.max(.0001,Math.abs(cy)));
+  const distance=screenEdge+rand(40,180);
+  spawnBronze(player.x+cx*distance,player.y+cy*distance);
+ }else spawnAround(500,1450,spawnBronze);
+ }
 }refreshRockField(oldX,oldY);
 const beltRockSpeed=biomeAt(player.x,player.y)===2?2:1;
 for(const r of rocks){r.x+=r.vx*dt*beltRockSpeed;r.y+=r.vy*dt*beltRockSpeed;if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
