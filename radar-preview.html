@@ -1,8 +1,9 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>DEEP BLUE — MAX RADAR BIOME PREVIEW</title><style>*{box-sizing:border-box}body{margin:0;background:#050c1c;color:#dceefa;font:14px system-ui}header{padding:13px 16px;background:#101e35;border-bottom:1px solid #31526b;display:flex;align-items:center;gap:12px;flex-wrap:wrap}h1{font-size:16px;margin:0;flex:1}button{background:#204663;border:1px solid #4d829c;color:white;padding:10px 13px;border-radius:8px;font:inherit;cursor:pointer}main{display:flex;gap:14px;padding:14px;flex-wrap:wrap;justify-content:center}canvas{width:min(94vw,720px);height:min(94vw,720px);touch-action:none;background:#050c1c;border:1px solid #36546d;border-radius:50%}aside{min-width:230px;max-width:320px;line-height:1.6}p{color:#a9c3d5}.dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px}#stats{white-space:pre-line;color:#d6e5f5}small{color:#8db2c8}</style></head><body><header><h1>DEEP BLUE · FULLY UPGRADED RADAR PREVIEW</h1><button id="reroll">↻ New universe</button><button id="reset">⌖ Centre map</button><button id="zoomout">−</button><button id="zoomin">+</button></header><main><canvas id="map" width="900" height="900"></canvas><aside><strong>BIOME NAVIGATION · RADAR MAXED</strong><p>Radar Core 1/1 · Range 25/25 (10,000 units) · Ping 10/10 (0.5s) · Detection 2/2.</p><p>This independent preview lets you inspect the smooth procedural geography without modifying your main game or save. The cyan ring shows the maximum upgraded radar range around your movable ship.</p><div><span class="dot" style="background:#31546b"></span>Free Space</div><div><span class="dot" style="background:#a45ac7"></span>Nebula</div><div><span class="dot" style="background:#e2a05c"></span>Asteroid Belt</div><div><span class="dot" style="background:#b6c5ed"></span>Starry Sky</div><div><span class="dot" style="background:#03030c;border:1px solid #52617a"></span>Void</div><p id="stats"></p><small>Drag the map to move your ship. Pinch or use +/- to zoom. The world boundary is 30,000 units; the central Free Space circle is 10,000 units. Weather gameplay effects are not yet active.</small></aside></main><script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>DEEP BLUE — MAX RADAR BIOME PREVIEW</title><style>*{box-sizing:border-box}body{margin:0;background:#050c1c;color:#dceefa;font:14px system-ui}header{padding:13px 16px;background:#101e35;border-bottom:1px solid #31526b;display:flex;align-items:center;gap:12px;flex-wrap:wrap}h1{font-size:16px;margin:0;flex:1}button{background:#204663;border:1px solid #4d829c;color:white;padding:10px 13px;border-radius:8px;font:inherit;cursor:pointer}main{display:flex;gap:14px;padding:14px;flex-wrap:wrap;justify-content:center}canvas{width:min(94vw,720px);height:min(94vw,720px);touch-action:none;background:#050c1c;border:1px solid #36546d;border-radius:50%}aside{min-width:230px;max-width:320px;line-height:1.6}p{color:#a9c3d5}.dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px}#stats{white-space:pre-line;color:#d6e5f5}small{color:#8db2c8}</style></head><body><header><h1>DEEP BLUE · FULLY UPGRADED RADAR PREVIEW</h1><button id="reroll">↻ New universe</button><button id="reset">⌖ Centre map</button><button id="zoomout">−</button><button id="zoomin">+</button></header><main><canvas id="map" width="900" height="900"></canvas><aside><strong>BIOME NAVIGATION · RADAR MAXED</strong><p>Radar Core 1/1 · Range 25/25 (10,000 units) · Ping 10/10 (0.5s) · Detection 2/2.</p><p>This independent preview lets you inspect the smooth procedural geography without modifying your main game or save. The cyan ring shows the maximum upgraded radar range around your movable ship.</p><div><span class="dot" style="background:#31546b"></span>Free Space</div><div><span class="dot" style="background:#a45ac7"></span>Nebula</div><div><span class="dot" style="background:#e2a05c"></span>Asteroid Belt</div><div><span class="dot" style="background:#b6c5ed"></span>Starry Sky</div><div><span class="dot" style="background:#31546b;border:1px solid #fff2d9"></span>Altar (Free Space-coloured pocket)</div><div><span class="dot" style="background:#03030c;border:1px solid #52617a"></span>Void</div><p id="stats"></p><small>Drag the map to move your ship. Pinch or use +/- to zoom. The world boundary is 30,000 units; the central Free Space circle is 10,000 units. The Altar appears as a small Free Space-coloured pocket within weather, with a cream marker at its centre. This preview models biome placement; the live game additionally avoids guaranteed formations.</small></aside></main><script>
 let expeditionSeed=0;function wreckRandom(seed){let s=seed>>>0;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
 const BIOME_LIMIT=30000,BIOME_SAFE=10000,BIOME_STEP=375,BIOME_SIDE=160;
-const BIOME_COLORS=['#31546b','#a45ac7','#e2a05c','#b6c5ed'];
+const BIOME_COLORS=['#31546b','#a45ac7','#e2a05c','#b6c5ed','#31546b'];
 let biomeGrid=null,biomeTargets=[],biomeCoverage=[],biomeDominants=[];
+let altar=null;
 const withinWorld=(x,y)=>x*x+y*y<BIOME_LIMIT*BIOME_LIMIT;
 function biomeHash(x,y,s){let n=(Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(s,1442695041))|0;n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967296}
 function biomeNoise(x,y,scale,seed){
@@ -13,6 +14,7 @@ function biomeNoise(x,y,scale,seed){
 // Continuous multi-cell sampling smooths the geographic contours, not merely the radar image.
 // Gaussian weights blend the biome ownership field before selecting the strongest region.
 function biomeAt(x,y){
+ if(altar&&Math.hypot(x-altar.x,y-altar.y)<altar.radius)return 4;
  if(x*x+y*y<BIOME_SAFE*BIOME_SAFE)return 0;
  if(!withinWorld(x,y))return -1;
  if(!biomeGrid)return 0;
@@ -79,8 +81,24 @@ function generateBiomeMap(){
 }
 
 
+function generateAltar(){
+ altar=null;
+ const rng=wreckRandom((expeditionSeed^0xa17a8e1)>>>0);
+ for(let i=0;i<700;i++){
+  const angle=rng()*Math.PI*2,dist=13000+rng()*13500;
+  const x=Math.cos(angle)*dist,y=Math.sin(angle)*dist,kind=biomeAt(x,y),radius=1000;
+  if(kind<1||kind>3)continue;
+  let contained=true;
+  for(let j=0;j<12;j++){const a=j*Math.PI/6;if(biomeAt(x+Math.cos(a)*radius,y+Math.sin(a)*radius)!==kind){contained=false;break}}
+  if(contained){altar={x,y,radius};break}
+ }
+ if(!altar)for(let i=0;i<700;i++){
+  const a=rng()*Math.PI*2,d=13000+rng()*13000,x=Math.cos(a)*d,y=Math.sin(a)*d;
+  if(biomeAt(x,y)>0){altar={x,y,radius:1000};break}
+ }
+}
 const canvas=document.getElementById('map'),ctx=canvas.getContext('2d');let shipX=0,shipY=0,scale=36000,drag=null;
-function newUniverse(){expeditionSeed=(Math.random()*4294967296)>>>0;generateBiomeMap();document.getElementById('stats').textContent='SEED '+expeditionSeed+'\n'+['Free Space','Nebula','Asteroid Belt','Starry Sky'].map((n,i)=>n+': '+biomeCoverage[i].toFixed(2)+'% (target '+biomeTargets[i].toFixed(2)+'%)').join('\n');draw()}
+function newUniverse(){expeditionSeed=(Math.random()*4294967296)>>>0;generateBiomeMap();generateAltar();document.getElementById('stats').textContent='SEED '+expeditionSeed+'\n'+['Free Space','Nebula','Asteroid Belt','Starry Sky'].map((n,i)=>n+': '+biomeCoverage[i].toFixed(2)+'% (target '+biomeTargets[i].toFixed(2)+'%)').join('\n')+(altar?'\nAltar: '+Math.round(altar.x)+', '+Math.round(altar.y):'');draw()}
 function draw(){
  const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#03030c';ctx.fillRect(0,0,w,h);
  const unit=scale/(w/2),tile=3;
@@ -90,6 +108,7 @@ function draw(){
  }
  const circle=(x,y,r,color,width,dash=[])=>{ctx.beginPath();ctx.setLineDash(dash);ctx.arc((x-shipX)/unit+w/2,(y-shipY)/unit+h/2,r/unit,0,Math.PI*2);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();ctx.setLineDash([])};
  circle(0,0,30000,'#e6c2fa',3,[8,6]);circle(0,0,10000,'#8ad0f4',2,[6,5]);circle(shipX,shipY,10000,'#76f5f0',3);
+ if(altar){const ax=(altar.x-shipX)/unit+w/2,ay=(altar.y-shipY)/unit+h/2;if(ax>=0&&ax<w&&ay>=0&&ay<h){ctx.fillStyle='#fff2d9';ctx.beginPath();ctx.arc(ax,ay,Math.max(2,5/unit),0,Math.PI*2);ctx.fill();}}
  ctx.strokeStyle='rgba(118,245,240,.22)';ctx.lineWidth=1;for(const r of [3333,6666])circle(shipX,shipY,r,'rgba(118,245,240,.25)',1);
  ctx.fillStyle='#b5ffff';ctx.beginPath();ctx.moveTo(w/2,h/2-12);ctx.lineTo(w/2+8,h/2+10);ctx.lineTo(w/2,h/2+5);ctx.lineTo(w/2-8,h/2+10);ctx.fill();
  ctx.font='bold 15px system-ui';ctx.textAlign='center';ctx.fillStyle='#fff';ctx.fillText('10,000 UNIT MAX RADAR',w/2,25);
