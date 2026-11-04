@@ -114,7 +114,11 @@ function draw(){
  const fill={void:'#06101b',floor:'#152635',wall:'#354c60',entrance:'#152635'};
  ctx.fillStyle=fill[t.structure];ctx.fillRect(px,py,cell,cell);
  if(art&&t.structure!=='void'){const near={};for(const [dx,dy] of [[0,-1],[0,1],[-1,0],[1,0]])near[dx+','+dy]=inside(x+dx,y+dy)&&map[idx(x+dx,y+dy)].structure==='wall';exactWreckTile(ctx,px,py,cell,t.structure,x,y,near)}
-  if(t.customId&&customImages.has(t.customId)){ctx.drawImage(customImages.get(t.customId),px,py,cell,cell)}
+  if(t.customId&&customImages.has(t.customId)){ctx.drawImage(customImages.get(t.customId),px,py,cell,cell)
+ }
+ // Render all objects only after the entire deck is drawn. Background tiles must never overwrite objects or their glow.
+ for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
+ const t=inside(x,y)?map[idx(x,y)]:{structure:'void',object:null,decor:null},px=(x-viewX)*cell,py=(y-viewY)*cell;
  if(t.decor==='damage'){ctx.strokeStyle='#e77e76';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px+cell*.2,py+cell*.25);ctx.lineTo(px+cell*.65,py+cell*.6);ctx.lineTo(px+cell*.42,py+cell*.8);ctx.stroke()}
  if(t.decor==='lights'){ctx.fillStyle='#6adbf5';ctx.fillRect(px+cell*.15,py+cell*.13,cell*.7,Math.max(3,cell*.13))}
  if(t.decor?.startsWith('pipes-')){ctx.save();const cx=px+cell/2,cy=py+cell/2;const line=()=>{ctx.beginPath();if(t.decor!=='pipes-vertical'){ctx.moveTo(px,cy);ctx.lineTo(px+cell,cy)}if(t.decor!=='pipes-horizontal'){ctx.moveTo(cx,py);ctx.lineTo(cx,py+cell)}if(t.decor==='pipes-bend'){ctx.beginPath();ctx.moveTo(px,cy);ctx.lineTo(cx,cy);ctx.lineTo(cx,py)}ctx.stroke()};ctx.strokeStyle='#142b3a';ctx.lineWidth=cell*.26;line();ctx.strokeStyle='#8aa7b3';ctx.lineWidth=cell*.13;line();if(t.decor==='pipes-valve'){ctx.fillStyle='#d9a66f';ctx.beginPath();ctx.arc(cx,cy,cell*.17,0,Math.PI*2);ctx.fill()}ctx.restore()}
@@ -130,6 +134,11 @@ function draw(){
  else if(art&&t.object==='kitchen'){ctx.fillStyle='#cad7d5';ctx.fillRect(px+cell*.2,py+cell*.2,cell*.6,cell*.14);ctx.fillStyle='#3a5664';ctx.fillRect(px+cell*.22,py+cell*.48,cell*.56,cell*.22)}}
  if(t.spawn){ctx.save();ctx.fillStyle={'spawn-small':'#d5dce2','spawn-medium':'#a5b7c8','spawn-large':'#6c859c'}[t.spawn];ctx.strokeStyle='#091421';ctx.lineWidth=Math.max(1,cell*.07);ctx.beginPath();ctx.arc(px+cell*.5,py+cell*.5,Math.max(4,cell*.3),0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#152736';ctx.font='bold '+Math.max(8,cell*.42)+'px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText({'spawn-small':'S','spawn-medium':'M','spawn-large':'L'}[t.spawn],px+cell*.5,py+cell*.51);ctx.restore()}
  if(t.spawn){const a=(Number(t.spawnDirection)||0)*Math.PI/180;ctx.save();ctx.translate(px+cell/2,py+cell/2);ctx.rotate(a);ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1.5,cell*.07);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(cell*.48,0);ctx.lineTo(cell*.27,-cell*.14);ctx.moveTo(cell*.48,0);ctx.lineTo(cell*.27,cell*.14);ctx.stroke();ctx.restore()}
+
+ }
+ // Grid overlay is intentionally last.
+ for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
+ const px=(x-viewX)*cell,py=(y-viewY)*cell;
   if($('grid').checked){ctx.strokeStyle='#8eb8d329';ctx.lineWidth=.5;ctx.strokeRect(px+.25,py+.25,cell-.5,cell-.5)}
  }
 }
