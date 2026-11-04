@@ -114,7 +114,7 @@ function draw(){
  const fill={void:'#06101b',floor:'#152635',wall:'#354c60',entrance:'#152635'};
  ctx.fillStyle=fill[t.structure];ctx.fillRect(px,py,cell,cell);
  if(art&&t.structure!=='void'){const near={};for(const [dx,dy] of [[0,-1],[0,1],[-1,0],[1,0]])near[dx+','+dy]=inside(x+dx,y+dy)&&map[idx(x+dx,y+dy)].structure==='wall';exactWreckTile(ctx,px,py,cell,t.structure,x,y,near)}
-  if(t.customId&&customImages.has(t.customId)){ctx.drawImage(customImages.get(t.customId),px,py,cell,cell)
+  if(t.customId&&customImages.has(t.customId)){ctx.drawImage(customImages.get(t.customId),px,py,cell,cell)}
  }
  // Render all objects only after the entire deck is drawn. Background tiles must never overwrite objects or their glow.
  for(let y=sy;y<ey;y++)for(let x=sx;x<ex;x++){
