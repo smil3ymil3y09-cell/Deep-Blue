@@ -31,6 +31,27 @@
   }
   TREE.push({id:'pr-'+path.id+'-capstone',name:path.star.toUpperCase(),desc:CAPSTONES[path.id],cost:1,tier:5,x:path.x,y:1730,color:path.color,path:path.id,capstone:true,parents:previous.slice()});
  }
+ // Approved Scorpius route. Upgrade indices map to the binary 1-2-4-8 star path.
+ const WRATH=[
+  ['DAN · DESTROY ASTEROID NANOBOT','A permanent autonomous companion follows your ship, navigates among asteroids and destroys one nearby ordinary asteroid every 8 seconds. 600-unit hunting range.'],
+  ['HIVE PROTOCOL','Deploy a second independent DAN nanobot. Each follows, finds targets and destroys asteroids independently.'],
+  ['CHUNKSHIFT','Press E to teleport three asteroid chunks (1,560 units) forward in your direction of travel. Momentum is preserved; 60-second recharge.'],
+  ['TACTICAL INTELLIGENCE','DAN prioritises asteroids on your flight path, selecting threats ahead of your moving ship instead of merely choosing the closest.'],
+  ['SELF-REPLICATION','Increase your permanent DAN swarm from two to four independent nanobots.'],
+  ['EXTINCTION PULSE','Press F to instantly erase all asteroids on screen. This screen-wide destructive ability has a 30-second cooldown.'],
+  ['DOUBLE JUMP','Chunkshift stores two independent charges, each recharging every 60 seconds.'],
+  ['INTERCEPTOR MODE','DAN actively hunts and intercepts nearby hostile outpost projectiles before they reach your ship.'],
+  ['OUTPOST ASSASSIN','DAN can identify active hostile outposts, approach them and disable them, awarding normal outpost bounties.'],
+  ['RECURSIVE SWARM','Every 25 asteroids destroyed by DAN generates another nanobot for this expedition, up to 12 total nanobots.'],
+  ['CHAIN REACTION','When a DAN nanobot destroys an asteroid, the blast can destroy two other nearby ordinary asteroids.'],
+  ['BULLET ERASURE','Extinction Pulse also erases every hostile projectile currently visible on screen.'],
+  ['SCORCHED SECTOR','For 15 seconds after Extinction Pulse, erased regions of the screen cannot regenerate new ordinary asteroids.'],
+  ['TARGETED LANDING','Chunkshift opens a navigation grid where you can select your teleport destination direction instead of only moving forward.'],
+  ['METEORIC ARRIVAL','Every Chunkshift arrival creates an impact shockwave that destroys asteroids within a 300-unit radius.']
+ ];
+ const wrathNodes=TREE.filter(n=>n.path==='scorpius'&&!n.capstone);
+ if(wrathNodes.length!==WRATH.length)throw new Error('Wrath pathway requires 15 upgrades');
+ wrathNodes.forEach((n,i)=>{n.name=WRATH[i][0];n.desc=WRATH[i][1];n.wrath=true;n.wrathIndex=i+1});
  if(TREE.length!==81)throw new Error('Prestige tree layout must contain exactly 81 nodes');
  const BY_ID=Object.fromEntries(TREE.map(n=>[n.id,n]));
  let selected='pr-root',viewTab='normal',zoom=.32,panX=0,panY=0,pointer=null,rendered=false;
@@ -50,7 +71,23 @@
   save.prestigePointScheduleVersion=2;
   persist();
  }
- function owned(id){return id==='pr-root'?prestigeLevel()>0:prestigeLevel()>=20&&BY_ID[id]?.capstone&&save.prestigeNodes?.[id]===true}
+ function owned(id){const n=BY_ID[id];return id==='pr-root'?prestigeLevel()>0:!!n&&prestigeLevel()>=(n.capstone?20:1)&&save.prestigeNodes?.[id]===true}
+ function canBuy(n){return !active&&!owned(n.id)&&prestigePoints()>=1&&(n.capstone?prestigeLevel()>=20:n.wrath&&prestigeLevel()>=1&&owned(n.parent))}
+ function purchaseNode(n){
+  if(!canBuy(n))return;
+  save.prestigePoints-=1;
+  (save.prestigeNodes??={})[n.id]=true;
+  persist();renderTree();renderClasses();window.updatePrestigeUI?.();
+ }
+ function lockMessage(n){
+  if(owned(n.id))return '★ PERMANENTLY UNLOCKED';
+  if(n.capstone)return prestigeLevel()<20?'LOCKED — Reach Prestige 20 to purchase this capstone.':'Legendary capstone available for purchase.';
+  if(!n.wrath)return 'COMING SOON — cannot purchase this pathway yet.';
+  if(prestigeLevel()<1)return 'LOCKED — Prestige once to unlock the research tree.';
+  if(!owned(n.parent))return 'LOCKED — First purchase '+BY_ID[n.parent].name+'.';
+  if(prestigePoints()<1)return 'NEED 1 PRESTIGE POINT';
+  return 'READY TO PURCHASE · Permanent research';
+ }
  function enableTab(tab){
   if(tab==='prestige'&&prestigeLevel()<1)return;
   viewTab=tab;
@@ -80,7 +117,7 @@
    if(n.parents)for(const id of n.parents)link(lines,BY_ID[id],n,n.color,false);
    const btn=document.createElement('button');btn.type='button';btn.className='prestige-node'+(n.root?' prestige-root':'')+(n.capstone?' prestige-capstone':'');
    btn.style.left=n.x+'px';btn.style.top=n.y+'px';btn.style.setProperty('--star',n.color);btn.dataset.node=n.id;
-   btn.setAttribute('aria-label',n.root?'A New Beginning':n.capstone?n.name+' legendary capstone':PATHS.find(p=>p.id===n.path).label+' pathway, coming soon');
+   btn.setAttribute('aria-label',n.root?'A New Beginning':n.capstone?n.name+' legendary capstone':n.wrath?n.name+' permanent Wrath upgrade':PATHS.find(p=>p.id===n.path).label+' pathway, coming soon');
    btn.onclick=()=>{selected=n.id;renderTree();el('prestigeDetail').scrollIntoView({block:'nearest',behavior:'smooth'})};
    holder.appendChild(btn);
   }
@@ -92,23 +129,20 @@
  function renderTree(){
   if(!el('prestigeWorld')?.dataset.built)return;
   el('prestigePoints').textContent=fmt(prestigePoints());
-  el('prestigeTreeCount').textContent=(prestigeLevel()>0?1:0)+TREE.filter(n=>n.capstone&&owned(n.id)).length+' / 81';
+  el('prestigeTreeCount').textContent=TREE.filter(n=>owned(n.id)).length+' / 81';
   for(const btn of el('prestigeNodes').children){
    const n=BY_ID[btn.dataset.node];const active=selected===n.id;
    btn.classList.toggle('selected',active);btn.classList.toggle('owned',owned(n.id));
-   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):n.capstone?(owned(n.id)?'★ OWNED':prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):'COMING SOON')+'</small>';
+   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):owned(n.id)?'★ OWNED':n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):n.wrath?(canBuy(n)?'AVAILABLE · 1 PP':prestigeLevel()<1?'LOCKED · PRESTIGE 1':!owned(n.parent)?'LOCKED · PREREQUISITE':'NEED 1 PP'):'COMING SOON')+'</small>';
   }
   const n=BY_ID[selected],path=PATHS.find(p=>p.id===n.path);
-  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(path.constellation+' · '+path.label);
-  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+(n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):n.capstone?(owned(n.id)?'★ PERMANENTLY UNLOCKED':prestigeLevel()<20?'LOCKED — Reach Prestige 20 to purchase this capstone.':'Capstone available. Other pathway upgrades are still coming soon.'):'COMING SOON — cannot purchase or spend Prestige Points yet.')+'</p>';
-  if(n.capstone){
-   const button=document.createElement('button');button.type='button';button.textContent=owned(n.id)?'PERMANENTLY OWNED':prestigeLevel()<20?'REQUIRES PRESTIGE 20':'UNLOCK CAPSTONE · 1 PP';
-   button.disabled=owned(n.id)||prestigeLevel()<20||prestigePoints()<1||active;
-   button.onclick=()=>{
-    if(active||prestigeLevel()<20||prestigePoints()<1||owned(n.id))return;
-    save.prestigePoints-=1;(save.prestigeNodes??={})[n.id]=true;
-    persist();renderTree();renderClasses();window.updatePrestigeUI?.();
-   };
+  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:n.wrath?n.name:(path.constellation+' · '+path.label);
+  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':n.wrath?'Scorpius · Wrath pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
+  if(n.capstone||n.wrath){
+   const button=document.createElement('button');button.type='button';
+   button.textContent=owned(n.id)?'PERMANENTLY OWNED':n.capstone&&prestigeLevel()<20?'REQUIRES PRESTIGE 20':!n.capstone&&!owned(n.parent)?'UNLOCK PREVIOUS NODE':'UNLOCK UPGRADE · 1 PP';
+   button.disabled=!canBuy(n);
+   button.onclick=()=>purchaseNode(n);
    el('prestigeDetail').appendChild(button);
   }
  }
