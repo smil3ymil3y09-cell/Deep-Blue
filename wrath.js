@@ -224,7 +224,7 @@
   const canShift=active&&has(3),canPulse=active&&has(6);
   shiftB.hidden=!canShift;pulseB.hidden=!canPulse;
   if(!active){navOpen=false;nav.hidden=true}
-  bar.hidden=!canShift&&!canPulse&&!active?true:!canShift&&!canPulse&&!window.prestigeOtherActionsVisible?.();
+  bar.hidden=!canShift&&!canPulse&&!(active&&(hasPrestigeCapstone('scorpius')||(phase==='collect'&&hasPrestigeCapstone('vela'))));
   if(canShift){
    shiftB.disabled=shiftCharges<=0;
    shiftB.textContent='E · CHUNKSHIFT · '+shiftCharges+'/'+maxCharges()+(shiftCharges<maxCharges()?' · '+Math.ceil(shiftRecharge)+'s':'');
@@ -308,6 +308,7 @@
  window.wrathSkipRock=(id,x,y)=>destroyed.has(id)||activeZone(x,y);
  window.wrathIsClearedChunk=key=>emptyChunks.has(key);
  window.wrathRecordDestroyed=markRock;
+ window.wrathMarkEmptyChunk=key=>{if(key)emptyChunks.add(key)};
  window.wrathActionsVisible=()=>active&&(has(3)||has(6));
  window.wrathDebug=()=>({drones:drones.length,danKills,pulseCooldown,shiftCharges,shiftRecharge,cleared:destroyed.size});
 })();
