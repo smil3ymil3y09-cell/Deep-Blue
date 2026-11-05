@@ -31,6 +31,18 @@
  function prestigeLevel(){return Math.max(0,Math.min(40,Math.trunc(Number(save.prestigeLevel)||0)))}
  function nextCost(){return Math.ceil(1000*Math.pow(1.5,prestigeLevel())-1e-9)}
  function prestigePoints(){return Math.max(0,Math.floor(Number(save.prestigePoints)||0))}
+ // Prestige 1: +5, levels 2-35: +2, 36-39: +1, and level 40: +3.
+ function pointReward(level){return level===1?5:level===40?3:level>=36?1:level>=2?2:0}
+ function totalPointsEarned(level){let total=0;for(let i=1;i<=Math.min(40,level);i++)total+=pointReward(i);return total}
+ // Old prestige accounts earned +5 per level. All placeholder nodes were unpurchasable,
+ // so migrate existing unspent points to the new total once, on local or cloud load.
+ function migratePointSchedule(){
+  if(save.prestigePointScheduleVersion===2)return;
+  const level=prestigeLevel(),previousEarned=level*5,newEarned=totalPointsEarned(level);
+  save.prestigePoints=Math.max(0,prestigePoints()-(previousEarned-newEarned));
+  save.prestigePointScheduleVersion=2;
+  persist();
+ }
  function owned(id){return id==='pr-root'&&prestigeLevel()>0}
  function enableTab(tab){
   if(tab==='prestige'&&prestigeLevel()<1)return;
@@ -77,11 +89,11 @@
   for(const btn of el('prestigeNodes').children){
    const n=BY_ID[btn.dataset.node];const active=selected===n.id;
    btn.classList.toggle('selected',active);btn.classList.toggle('owned',owned(n.id));
-   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):n.capstone?'CAPSTONE · COMING SOON':'COMING SOON')+'</small>';
+   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'CAPSTONE · COMING SOON'):'COMING SOON')+'</small>';
   }
   const n=BY_ID[selected],path=PATHS.find(p=>p.id===n.path);
   const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(path.constellation+' · '+path.label);
-  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point when released':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+(n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):'COMING SOON — cannot purchase or spend Prestige Points yet.')+'</p>';
+  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+(n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):n.capstone&&prestigeLevel()<20?'LOCKED — Reach Prestige 20 to unlock the capstone tier. Effect coming soon.':'COMING SOON — cannot purchase or spend Prestige Points yet.')+'</p>';
  }
  function applyView(){
   const w=el('prestigeWorld');if(w)w.style.transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')';
@@ -116,12 +128,13 @@
   if(active||prestigeLevel()>=40)return;
   const cost=nextCost(),level=prestigeLevel();
   if(save.gold<cost)return;
-  if(!window.confirm('PRESTIGE '+(level+1)+'?\n\nCost: '+fmt(cost)+' gold.\nAll gold, regular research, discovered formations and equipped research abilities will reset.\nYou keep your cosmetics, Scrap and permanent Prestige Points.\nYou gain 5 Prestige Points, +1,000 starting gold, and permanent earnings multipliers at Prestige 1, 10, 20 and 40.\n\nThis cannot be undone.'))return;
+  const reward=pointReward(level+1);
+  if(!window.confirm('PRESTIGE '+(level+1)+'?\n\nCost: '+fmt(cost)+' gold.\nAll gold, regular research, discovered formations and equipped research abilities will reset.\nYou keep your cosmetics, Scrap and permanent Prestige Points.\nYou gain '+reward+' Prestige Point'+(reward===1?'':'s')+', +1,000 starting gold, and permanent earnings multipliers at Prestige 1, 10, 20 and 40.\n\nThis cannot be undone.'))return;
   // Preserve player settings and cosmetic purchases, not gameplay progression.
-  const next=level+1,points=prestigePoints()+5;
+  const next=level+1,points=prestigePoints()+reward;
   const retained={keybinds:save.keybinds,scrap:save.scrap,customShip:save.customShip,customOwned:save.customOwned,customSlots:save.customSlots};
   save={...defaults,...retained,
-   prestigeLevel:next,prestigePoints:points,prestigeNodes:{'pr-root':true},
+   prestigeLevel:next,prestigePoints:points,prestigePointScheduleVersion:2,prestigeNodes:{'pr-root':true},
    gold:1000,core:0,speed:0,fuel:0,returnfuel:0,hullbonus:0,selectedClass:'hoarder',
    shipLevels:{},shipSpent:{},luckLevels:{},luckSpent:{},bonusLevels:{},bonusSpent:{},profitLevels:{},profitSpent:{},radarLevels:{},radarSpent:{},legacySpent:{},
    abilityLoadout:['dedication',null,null,null,null,null,null,null,null,null],
@@ -133,11 +146,12 @@
  }
  el('prestigeBuy').onclick=purchasePrestige;
  window.updatePrestigeUI=function(){
+  migratePointSchedule();
   const level=prestigeLevel(),mult=prestigeGoldMultiplier();
   el('prestigeLevelLabel').textContent='PRESTIGE '+level+' / 40 · ×'+mult+' GOLD';
   const button=el('prestigeBuy');
   button.disabled=active||level>=40||save.gold<nextCost();
-  button.textContent=level>=40?'MAX PRESTIGE REACHED':'PRESTIGE '+(level+1)+' · '+fmt(nextCost())+' GOLD';
+  button.textContent=level>=40?'MAX PRESTIGE REACHED':'PRESTIGE '+(level+1)+' · '+fmt(nextCost())+' GOLD · +'+pointReward(level+1)+' PP';
   const tab=el('prestigeResearchTab');tab.hidden=level<1;
   if(level<1&&viewTab==='prestige')enableTab('normal');
   if(level>=1&&viewTab==='prestige'){buildTree();renderTree()}
