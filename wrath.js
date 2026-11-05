@@ -164,7 +164,7 @@
    for(const bot of drones){
     if(bot.interceptClock>0)continue;
     const aheadX=b.x+b.vx*.14,aheadY=b.y+b.vy*.14;
-    if(len(aheadX-bot.x,aheadY-bot.y)>85&&len(b.x-bot.x,b.y-bot.y)>65)continue;
+    if(len(aheadX-bot.x,aheadY-bot.y)>85&&len(b.x-bot.x,b.y-bot.y)>65&&!(len(b.x-player.x,b.y-player.y)<110&&len(bot.x-player.x,bot.y-player.y)<500))continue;
     outpostBullets.splice(j,1);bot.interceptClock=1.1;
     effects.push({x:b.x,y:b.y,t:.28,r:35,color:'#ffd48b'});
     break;
