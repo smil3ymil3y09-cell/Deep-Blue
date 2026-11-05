@@ -212,7 +212,10 @@
  const isClearedRock=rock=>shaulaZones.some(z=>Math.hypot(rock.x-z.x,rock.y-z.y)<=1000);
  function clearShaulaRocks(){
   if(!shaulaZones.length)return;
+  const affected=new Set();
+  for(const r of rocks)if(isClearedRock(r)){window.wrathRecordDestroyed?.(r);if(r.chunk)affected.add(r.chunk)}
   rocks=rocks.filter(r=>!isClearedRock(r));
+  for(const key of affected)if(!rocks.some(r=>r.chunk===key))window.wrathMarkEmptyChunk?.(key);
   goldenRocks=goldenRocks.filter(r=>!isClearedRock(r));
   bronzeRocks=bronzeRocks.filter(r=>!isClearedRock(r));
  }
@@ -220,7 +223,7 @@
   const shaula=el('shaulaButton'),returnButton=el('alsephinaReturn'),bar=el('prestigeActionBar');
   const canShaula=active&&hasPrestigeCapstone('scorpius');
   const canReturn=active&&phase==='collect'&&hasPrestigeCapstone('vela');
-  bar.hidden=!canShaula&&!canReturn;
+  bar.hidden=!canShaula&&!canReturn&&!window.wrathActionsVisible?.();
   shaula.hidden=!canShaula;returnButton.hidden=!canReturn;
   if(canShaula){
    shaula.disabled=shaulaCooldown>0;
