@@ -11,7 +11,7 @@
  ];
  const CAPSTONES={
   draco:'Eltanin — The Dragon’s Hoard: multiply final successfully banked expedition gold by ×25, after all other multipliers.',
-  scorpius:'Shaula — The Scorpion’s Sting: press Q (or the SHAULA button) to erase asteroids within 1,000 units and add 100,000 unbanked gold to your haul. 10-second cooldown.',
+  scorpius:'Shaula — The Scorpion’s Sting: equip this legendary ability in a numbered slot to erase asteroids within 1,000 units and add 100,000 unbanked gold to your haul. 10-second cooldown.',
   ursa:'Alcor — The Unseen Hand: automatically collect all crates within 750 units every 5 seconds, even through asteroids.',
   gemini:'Castor — The Divine Union: gain the full benefits of every current and future ship class simultaneously.',
   vela:'Alsephina — The Endless Voyage: no collection-phase time limit. Press R (or BEGIN RETURN) whenever you want to start your return timer.'
@@ -35,10 +35,10 @@
  const WRATH=[
   ['DAN · DESTROY ASTEROID NANOBOT','A permanent autonomous companion follows your ship, navigates among asteroids and destroys one nearby ordinary asteroid every 8 seconds. 600-unit hunting range.'],
   ['HIVE PROTOCOL','Deploy a second independent DAN nanobot. Each follows, finds targets and destroys asteroids independently.'],
-  ['CHUNKSHIFT','Press E to teleport three asteroid chunks (1,560 units) forward in your direction of travel. Momentum is preserved; 60-second recharge.'],
+  ['CHUNKSHIFT','Equip this active ability in a numbered slot to teleport to a randomly chosen Golden, Obsidian or Magma asteroid formation generated in the current expedition. Momentum is preserved; 60-second recharge.'],
   ['TACTICAL INTELLIGENCE','DAN prioritises asteroids on your flight path, selecting threats ahead of your moving ship instead of merely choosing the closest.'],
   ['SELF-REPLICATION','Increase your permanent DAN swarm from two to four independent nanobots.'],
-  ['EXTINCTION PULSE','Press F to instantly erase all asteroids on screen. This screen-wide destructive ability has a 30-second cooldown.'],
+  ['EXTINCTION PULSE','Equip this active ability in a numbered slot to instantly erase all asteroids on screen. This screen-wide destructive ability has a 30-second cooldown.'],
   ['DOUBLE JUMP','Chunkshift stores two independent charges, each recharging every 60 seconds.'],
   ['INTERCEPTOR MODE','DAN actively hunts and intercepts nearby hostile outpost projectiles before they reach your ship.'],
   ['OUTPOST ASSASSIN','DAN can identify active hostile outposts, approach them and disable them, awarding normal outpost bounties.'],
@@ -46,7 +46,7 @@
   ['CHAIN REACTION','When a DAN nanobot destroys an asteroid, the blast can destroy two other nearby ordinary asteroids.'],
   ['BULLET ERASURE','Extinction Pulse also erases every hostile projectile currently visible on screen.'],
   ['SCORCHED SECTOR','For 15 seconds after Extinction Pulse, erased regions of the screen cannot regenerate new ordinary asteroids.'],
-  ['TARGETED LANDING','Chunkshift opens a navigation grid where you can select your teleport destination direction instead of only moving forward.'],
+  ['TARGETED LANDING','Chunkshift opens a formation list so you can choose a specific generated Golden, Obsidian or Magma location instead of jumping to a random one.'],
   ['METEORIC ARRIVAL','Every Chunkshift arrival creates an impact shockwave that destroys asteroids within a 300-unit radius.']
  ];
  const wrathNodes=TREE.filter(n=>n.path==='scorpius'&&!n.capstone);
@@ -77,7 +77,9 @@
   if(!canBuy(n))return;
   save.prestigePoints-=1;
   (save.prestigeNodes??={})[n.id]=true;
-  persist();renderTree();renderClasses();window.updatePrestigeUI?.();
+  const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':null;
+  if(newlyUnlocked)autoEquipPrestigeAbility(newlyUnlocked);
+  persist();renderTree();renderClasses();renderAbilities();renderGameAbilityBar();window.updatePrestigeUI?.();
  }
  function lockMessage(n){
   if(owned(n.id))return '★ PERMANENTLY UNLOCKED';
@@ -183,12 +185,17 @@
   if(!window.confirm('PRESTIGE '+(level+1)+'?\n\nCost: '+fmt(cost)+' gold.\nAll gold, regular research, discovered formations and equipped research abilities will reset.\nYou keep your cosmetics, Scrap and permanent Prestige Points.\nYou gain '+reward+' Prestige Point'+(reward===1?'':'s')+', +1,000 starting gold, and permanent earnings multipliers at Prestige 1, 10, 20 and 40.\n\nThis cannot be undone.'))return;
   // Preserve player settings and cosmetic purchases, not gameplay progression.
   const next=level+1,points=prestigePoints()+reward;
-  const retained={keybinds:save.keybinds,scrap:save.scrap,customShip:save.customShip,customOwned:save.customOwned,customSlots:save.customSlots,prestigeNodes:{...save.prestigeNodes,'pr-root':true}};
+  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
+  if(!equippedPermanent.includes('dedication')){
+   const free=equippedPermanent.indexOf(null);
+   if(free>=0)equippedPermanent[free]='dedication';
+  }
+  const retained={keybinds:save.keybinds,scrap:save.scrap,customShip:save.customShip,customOwned:save.customOwned,customSlots:save.customSlots,prestigeNodes:{...save.prestigeNodes,'pr-root':true},equippedPermanent};
   save={...defaults,...retained,
    prestigeLevel:next,prestigePoints:points,prestigePointScheduleVersion:2,prestigeNodes:retained.prestigeNodes,
    gold:1000,core:0,speed:0,fuel:0,returnfuel:0,hullbonus:0,selectedClass:'hoarder',
    shipLevels:{},shipSpent:{},luckLevels:{},luckSpent:{},bonusLevels:{},bonusSpent:{},profitLevels:{},profitSpent:{},radarLevels:{},radarSpent:{},legacySpent:{},
-   abilityLoadout:['dedication',null,null,null,null,null,null,null,null,null],
+   abilityLoadout:retained.equippedPermanent,
    brakeSlot:-1,trackerSlot:-1,tasks:[]
   };
   taskInit();customInit();refreshCustomImage();sanitizeLoadout();
@@ -220,18 +227,13 @@
   bronzeRocks=bronzeRocks.filter(r=>!isClearedRock(r));
  }
  function updateActionButtons(){
-  const shaula=el('shaulaButton'),returnButton=el('alsephinaReturn'),bar=el('prestigeActionBar');
-  const canShaula=active&&hasPrestigeCapstone('scorpius');
+  const returnButton=el('alsephinaReturn'),bar=el('prestigeActionBar');
   const canReturn=active&&phase==='collect'&&hasPrestigeCapstone('vela');
-  bar.hidden=!canShaula&&!canReturn&&!window.wrathActionsVisible?.();
-  shaula.hidden=!canShaula;returnButton.hidden=!canReturn;
-  if(canShaula){
-   shaula.disabled=shaulaCooldown>0;
-   shaula.textContent=shaulaCooldown>0?'SHAULA · '+Math.ceil(shaulaCooldown)+'s':'Q · SHAULA · +100K';
-  }
+  returnButton.hidden=!canReturn;
+  bar.hidden=!canReturn;
  }
  function activateShaula(){
-  if(!active||!hasPrestigeCapstone('scorpius')||shaulaCooldown>0)return;
+  if(!active||!hasPrestigeCapstone('scorpius')||!equipped('shaula')||shaulaCooldown>0)return;
   shaulaCooldown=10;shaulaZones.push({x:player.x,y:player.y});
   clearShaulaRocks();haul+=100000;audioSound('ability');
   notify('SHAULA — ASTEROIDS ERASED · +100,000 UNBANKED GOLD!');
@@ -242,11 +244,11 @@
   enterReturnPhase('ALSEPHINA — RETURN JOURNEY BEGINS!');
   updateActionButtons();
  }
- el('shaulaButton').onclick=activateShaula;
+ window.prestigeActivateShaula=activateShaula;
+ window.prestigeShaulaStatus=()=>({ready:shaulaCooldown<=0,label:shaulaCooldown>0?Math.ceil(shaulaCooldown)+'s':'READY'});
  el('alsephinaReturn').onclick=activateAlsephina;
  addEventListener('keydown',e=>{
   if(!active||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.target.closest('input,textarea,select'))return;
-  if(e.code==='KeyQ'&&!Object.values(save.keybinds||{}).includes('KeyQ')){e.preventDefault();activateShaula()}
   if(e.code==='KeyR'&&!Object.values(save.keybinds||{}).includes('KeyR')){e.preventDefault();activateAlsephina()}
  });
  window.prestigeCapstoneRunStart=function(){shaulaCooldown=0;alcorClock=5;shaulaZones=[];updateActionButtons()};
