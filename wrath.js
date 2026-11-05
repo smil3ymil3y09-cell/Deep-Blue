@@ -11,7 +11,7 @@
  const has=n=>(Number(save.prestigeLevel)||0)>=1&&save.prestigeNodes?.[IDS[n-1]]===true;
  let drones=[],destroyed=new Set(),emptyChunks=new Set(),zones=[],effects=[];
  let danKills=0,pulseCooldown=0,shiftCharges=0,shiftRecharge=0,navOpen=false;
- const SHOOT_INTERVAL=8,SHIFT_DISTANCE=3*520,SHIFT_COOLDOWN=60,PULSE_COOLDOWN=30;
+ const SHOOT_INTERVAL=8,SHIFT_COOLDOWN=60,PULSE_COOLDOWN=30;
  const len=(x,y)=>Math.hypot(x,y);
  const near=(a,b,dist)=>len(a.x-b.x,a.y-b.y)<=dist;
  const bounded=(x,y)=>Number.isFinite(x)&&Number.isFinite(y)&&withinWorld(x,y)&&!altarContains(x,y);
@@ -172,7 +172,7 @@
   }
  }
  function pulse(){
-  if(!active||!has(6)||pulseCooldown>0)return;
+  if(!active||!has(6)||!equipped('extinction')||pulseCooldown>0)return;
   pulseCooldown=PULSE_COOLDOWN;
   const halfW=W/(2*CAMERA_SCALE)+12,halfH=H/(2*CAMERA_SCALE)+12;
   const x=player.x,y=player.y,inside=r=>Math.abs(r.x-x)<=halfW&&Math.abs(r.y-y)<=halfH;
@@ -183,61 +183,99 @@
   if(has(13))zones.push({x,y,halfW,halfH,t:15});
   effects.push({x,y,t:1,r:Math.max(halfW,halfH),color:'#ff5477',pulse:true});
   audioSound('ability');notify('EXTINCTION PULSE — SCREEN CLEARED!');
-  updateButtons();
  }
- function landingPoint(dx,dy){
-  const distance=SHIFT_DISTANCE,targetX=player.x+dx*distance,targetY=player.y+dy*distance;
-  if(!bounded(targetX,targetY))return null;
-  maintainRockField(targetX,targetY);
-  for(let j=0;j<20;j++){
-   const a=(j/20)*Math.PI*2,r=j===0?0:50+Math.floor(j/5)*48;
-   const x=targetX+Math.cos(a)*r,y=targetY+Math.sin(a)*r;
-   if(!bounded(x,y)||rockOverlapsWreck(x,y,42)||rockOverlapsStation(x,y,42)||anyRock(x,y,42))continue;
-   if(outposts.some(o=>o.active&&len(o.x-x,o.y-y)<125))continue;
-   return {x,y};
+ // Chunkshift now travels to a real seeded Golden / Obsidian / Magma formation.
+ // Only actual formations from the current expedition are eligible.
+ const availableFormations=()=>specialFormations.filter(f=>
+  ['golden','obsidian','magma'].includes(f.type)&&
+  bounded(f.x,f.y)&&len(f.x-player.x,f.y-player.y)>500
+ );
+ function safeLanding(f){
+  // Formations have a clear central pocket. Try it before spiral samples.
+  // Check actual asteroid positions, derelict structures and spawned outposts.
+  maintainRockField(f.x,f.y);
+  const safe=(x,y)=>{
+   if(!bounded(x,y)||rockOverlapsWreck(x,y,52)||rockOverlapsStation(x,y,52)||anyRock(x,y,52))return false;
+   const cx=Math.floor(x/OUTPOST_CELL),cy=Math.floor(y/OUTPOST_CELL);
+   for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){
+    const o=validOutpost(cx+ox,cy+oy);
+    if(o&&!disabledOutpostKeys.has(o.key)&&len(o.x-x,o.y-y)<145)return false;
+   }
+   return true;
+  };
+  if(safe(f.x,f.y))return {x:f.x,y:f.y};
+  const angles=16;
+  for(const radius of [75,145,230,335,465,630,810,1020]){
+   for(let i=0;i<angles;i++){
+    const theta=(i+.5)*(Math.PI*2/angles);
+    const x=f.x+Math.cos(theta)*radius,y=f.y+Math.sin(theta)*radius;
+    if(safe(x,y))return {x,y};
+   }
   }
   return null;
  }
- function shift(dx,dy){
-  if(!active||!has(3)||shiftCharges<=0)return;
-  const p=landingPoint(dx,dy);
-  if(!p){notify('CHUNKSHIFT — NO SAFE LANDING ZONE!');return}
+ function shiftToFormation(form){
+  if(!active||!has(3)||!equipped('chunkshift')||shiftCharges<=0)return false;
+  if(!specialFormations.includes(form)){notify('CHUNKSHIFT — TARGET NO LONGER EXISTS!');return false}
+  const landing=safeLanding(form);
+  if(!landing){notify('CHUNKSHIFT — NO SAFE LANDING IN '+form.type.toUpperCase()+' FORMATION!');return false}
   const from={x:player.x,y:player.y};
-  player.x=p.x;player.y=p.y;shiftCharges--;
+  player.x=landing.x;player.y=landing.y;
+  shiftCharges--;
   if(shiftCharges<maxCharges()&&shiftRecharge<=0)shiftRecharge=SHIFT_COOLDOWN;
   navOpen=false;$('wrathTargetPanel').hidden=true;
+  // Brief protection avoids immediate damage from surviving entry momentum.
+  invuln=Math.max(invuln,.8);
   effects.push({x:from.x,y:from.y,t:.5,r:95,color:'#a883ff'});
-  effects.push({x:p.x,y:p.y,t:.5,r:105,color:'#ff6688'});
-  if(has(15))destroyRadius(p.x,p.y,300,'arrival');
-  audioSound('ability');notify('CHUNKSHIFT — TELEPORT COMPLETE!');
-  updateButtons();
+  effects.push({x:player.x,y:player.y,t:.5,r:105,color:'#ff6688'});
+  if(has(15))destroyRadius(player.x,player.y,300,'arrival');
+  audioSound('ability');notify('CHUNKSHIFT — '+form.type.toUpperCase()+' FORMATION FOUND!');
+  return true;
  }
  function maxCharges(){return has(7)?2:has(3)?1:0}
  function activateShift(){
-  if(!active||!has(3)||shiftCharges<=0)return;
+  if(!active||!has(3)||!equipped('chunkshift')||shiftCharges<=0)return;
+  const targets=availableFormations();
+  if(!targets.length){notify('CHUNKSHIFT — NO OTHER GOLDEN, OBSIDIAN OR MAGMA FORMATION AVAILABLE!');return}
   if(has(14)){
-   navOpen=!navOpen;$('wrathTargetPanel').hidden=!navOpen;
-  }else{const d=direction();shift(d.x,d.y)}
- }
- function updateButtons(){
-  const shiftB=$('wrathChunkshift'),pulseB=$('wrathPulse'),nav=$('wrathTargetPanel'),bar=$('prestigeActionBar');
-  const canShift=active&&has(3),canPulse=active&&has(6);
-  shiftB.hidden=!canShift;pulseB.hidden=!canPulse;
-  if(!active){navOpen=false;nav.hidden=true}
-  bar.hidden=!canShift&&!canPulse&&!(active&&(hasPrestigeCapstone('scorpius')||(phase==='collect'&&hasPrestigeCapstone('vela'))));
-  if(canShift){
-   shiftB.disabled=shiftCharges<=0;
-   shiftB.textContent='E · CHUNKSHIFT · '+shiftCharges+'/'+maxCharges()+(shiftCharges<maxCharges()?' · '+Math.ceil(shiftRecharge)+'s':'');
+   navOpen=!navOpen;
+   const panel=$('wrathTargetPanel'),grid=$('wrathTargetGrid');
+   panel.hidden=!navOpen;
+   if(!navOpen)return;
+   grid.innerHTML='';
+   for(const f of targets){
+    const button=document.createElement('button');button.type='button';
+    button.textContent=f.type.toUpperCase()+' · '+Math.round(len(f.x-player.x,f.y-player.y)).toLocaleString('en-GB')+'u';
+    button.title='Teleport to this '+f.type+' formation';
+    button.onclick=()=>shiftToFormation(f);
+    grid.appendChild(button);
+   }
+  }else{
+   // Random destination from the actual formations; try all candidates
+   // in shuffled order so one obstructed landing does not block the ability.
+   const pool=targets.slice();
+   while(pool.length){
+    const index=Math.floor(Math.random()*pool.length);
+    const target=pool.splice(index,1)[0];
+    if(shiftToFormation(target))return;
+   }
   }
-  if(canPulse){pulseB.disabled=pulseCooldown>0;pulseB.textContent=pulseCooldown>0?'F · PULSE · '+Math.ceil(pulseCooldown)+'s':'F · EXTINCTION PULSE'}
+ }
+ function abilityStatus(id){
+  if(id==='chunkshift')return {
+   ready:shiftCharges>0,
+   label:shiftCharges+'/'+maxCharges()+(shiftCharges<maxCharges()?' · '+Math.ceil(Math.max(0,shiftRecharge))+'s':'')
+  };
+  if(id==='extinction')return {ready:pulseCooldown<=0,label:pulseCooldown>0?Math.ceil(pulseCooldown)+'s':'READY'};
+  return null;
  }
  function start(){
   drones=[];destroyed=new Set();emptyChunks=new Set();zones=[];effects=[];danKills=0;
   pulseCooldown=0;shiftCharges=maxCharges();shiftRecharge=0;navOpen=false;
   for(let i=0;i<expectedDrones();i++)createDrone();
-  $('wrathTargetPanel').hidden=true;updateButtons();
+  $('wrathTargetPanel').hidden=true;
  }
- function end(){drones=[];zones=[];effects=[];navOpen=false;$('wrathTargetPanel').hidden=true;updateButtons()}
+ function end(){drones=[];zones=[];effects=[];navOpen=false;$('wrathTargetPanel').hidden=true}
  function tick(dt){
   if(!active)return;
   if(pulseCooldown>0)pulseCooldown=Math.max(0,pulseCooldown-dt);
@@ -255,7 +293,7 @@
   }
   for(const fx of effects)fx.t-=dt;
   effects=effects.filter(f=>f.t>0);
-  tickDrones(dt);updateButtons();
+  tickDrones(dt);
  }
  function draw(camX,camY){
   if(!active)return;
@@ -280,25 +318,15 @@
    }
   }
  }
- // Wrath controls remain separate from normal 10-slot ability loadout.
- $('wrathChunkshift').onclick=activateShift;
- $('wrathPulse').onclick=pulse;
- const directions=[[-1,-1,'↖'],[0,-1,'↑'],[1,-1,'↗'],[-1,0,'←'],[0,0,'✕'],[1,0,'→'],[-1,1,'↙'],[0,1,'↓'],[1,1,'↘']];
- const grid=$('wrathTargetGrid');
- for(const [dx,dy,label] of directions){
-  const button=document.createElement('button');button.type='button';button.textContent=label;
-  button.title=dx||dy?'Teleport '+SHIFT_DISTANCE+' units in this direction':'Cancel teleport';
-  button.onclick=()=>{if(!dx&&!dy){navOpen=false;$('wrathTargetPanel').hidden=true;return}
-   const length=len(dx,dy);shift(dx/length,dy/length)};
-  grid.appendChild(button);
- }
+ // Active powers are triggered through the normal numbered ability slots.
+ $('wrathTargetCancel').onclick=()=>{navOpen=false;$('wrathTargetPanel').hidden=true};
  addEventListener('keydown',e=>{
-  if(!active||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.target.closest('input,textarea,select'))return;
-  if(e.code==='Escape'&&navOpen){navOpen=false;$('wrathTargetPanel').hidden=true;return}
-  if(Object.values(save.keybinds||{}).includes(e.code))return;
-  if(e.code==='KeyE'){e.preventDefault();activateShift()}
-  else if(e.code==='KeyF'){e.preventDefault();pulse()}
+  if(!active||e.code!=='Escape'||!navOpen)return;
+  navOpen=false;$('wrathTargetPanel').hidden=true;
  });
+ window.wrathActivateShift=activateShift;
+ window.wrathActivatePulse=pulse;
+ window.wrathAbilityStatus=abilityStatus;
  window.wrathHas=has;
  window.wrathStart=start;
  window.wrathEnd=end;
@@ -309,6 +337,5 @@
  window.wrathIsClearedChunk=key=>emptyChunks.has(key);
  window.wrathRecordDestroyed=markRock;
  window.wrathMarkEmptyChunk=key=>{if(key)emptyChunks.add(key)};
- window.wrathActionsVisible=()=>active&&(has(3)||has(6));
  window.wrathDebug=()=>({drones:drones.length,danKills,pulseCooldown,shiftCharges,shiftRecharge,cleared:destroyed.size});
 })();
