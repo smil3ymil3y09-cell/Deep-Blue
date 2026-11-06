@@ -107,7 +107,7 @@
   save.prestigePoints-=1;
   (save.prestigeNodes??={})[n.id]=true;
   const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':n.id==='pr-draco-4-1'?'midas':n.id==='pr-draco-4-7'?'lastlaugh':n.id==='pr-draco-capstone'?'eltanin':n.id==='pr-ursa-3-1'?'timewarp':n.id==='pr-ursa-3-3'?'taketime':n.id==='pr-ursa-capstone'?'alcor':n.path==='gemini'&&!n.capstone?['loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','restart','blackhole','xray','refund','lastresort','parallel','wildcard'][n.geminiIndex-1]:n.id==='pr-gemini-capstone'?'castor':null;
-  if(newlyUnlocked)autoEquipPrestigeAbility(newlyUnlocked);
+  if(newlyUnlocked&&newlyUnlocked!=='restart')autoEquipPrestigeAbility(newlyUnlocked);
   persist();renderTree();renderClasses();renderAbilities();renderGameAbilityBar();window.updatePrestigeUI?.();
  }
  function lockMessage(n){
@@ -214,7 +214,7 @@
   if(!window.confirm('PRESTIGE '+(level+1)+'?\n\nCost: '+fmt(cost)+' gold.\nAll gold, regular research, discovered formations and equipped research abilities will reset.\nYou keep your cosmetics, Scrap and permanent Prestige Points.\nYou gain '+reward+' Prestige Point'+(reward===1?'':'s')+', +1,000 starting gold, and permanent earnings multipliers at Prestige 1, 10, 20 and 40.\n\nThis cannot be undone.'))return;
   // Preserve player settings and cosmetic purchases, not gameplay progression.
   const next=level+1,points=prestigePoints()+reward;
-  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula','midas','lastlaugh','eltanin','timewarp','taketime','alcor','loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','restart','blackhole','xray','refund','lastresort','parallel','wildcard','castor'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
+  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula','midas','lastlaugh','eltanin','timewarp','taketime','alcor','loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','blackhole','xray','refund','lastresort','parallel','wildcard','castor'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
   if(!equippedPermanent.includes('dedication')){
    const free=equippedPermanent.indexOf(null);
    if(free>=0)equippedPermanent[free]='dedication';
