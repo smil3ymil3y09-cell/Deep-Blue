@@ -12,7 +12,7 @@
  const CAPSTONES={
   draco:'Eltanin — The Dragon’s Hoard: EQUIP this active ability in a numbered slot and activate once each expedition to arm a ×25 final banked gold multiplier on successful return.',
   scorpius:'Shaula — The Scorpion’s Sting: equip this legendary ability in a numbered slot to erase asteroids within 1,000 units and add 100,000 unbanked gold to your haul. 10-second cooldown.',
-  ursa:'Alcor — The Unseen Hand: automatically collect all crates within 750 units every 5 seconds, even through asteroids.',
+  ursa:'Alcor — The Unseen Hand: EQUIP in a numbered slot and activate once per expedition to collect every crate within 750 units every 5 seconds, even through asteroids.',
   gemini:'Castor — The Divine Union: gain the full benefits of every current and future ship class simultaneously.',
   vela:'Alsephina — The Endless Voyage: no collection-phase time limit. Press R (or BEGIN RETURN) whenever you want to start your return timer.'
  };
@@ -70,6 +70,10 @@
   ['TARGETED LANDING','Chunkshift opens a formation list so you can choose a specific generated Golden, Obsidian or Magma location instead of jumping to a random one.'],
   ['METEORIC ARRIVAL','Every Chunkshift arrival creates an impact shockwave that destroys asteroids within a 300-unit radius.']
  ];
+ const SLOTH=[["NO RUSH","PASSIVE · Adds 30 seconds to both collection and return timers."],["SUNDAY DRIVE","PASSIVE · Below 300 units per second, collection and return timers tick at half speed."],["LAZY MAGNET","PASSIVE · Automatically collects up to 3 crates within 150 units every 4 seconds."],["BORROWED TIME","PASSIVE · Each crate adds 2 seconds to collection time, capped at 120 bonus seconds per expedition."],["TIME WARP","ACTIVE · Numbered-slot ability: asteroids drift at 15% speed for 15 seconds. 40-second cooldown."],["LOOT ORBIT","PASSIVE · Lazy Magnet collects 5 crates within 300 units every 3 seconds, even through obstacles."],["TAKE YOUR TIME","ACTIVE · Numbered-slot ability: pause expedition countdown for 20 seconds. 90-second cooldown."],["ENDLESS PATIENCE","PASSIVE · Borrowed Time grants 5 seconds per crate, up to 600 seconds per expedition."],["THE LONG WAY HOME","PASSIVE · Double the entire return timer, including No Rush."],["FROZEN UNIVERSE","PASSIVE · Time Warp stops asteroid movement completely for 25 seconds. Obstacles remain solid."],["TEMPORAL SANCTUARY","PASSIVE · During Time Warp, outpost bullets and firing progress slow by 90%."],["GRAVITATIONAL HARVEST","PASSIVE · Lazy Magnet collects 8 crates within 450 units every 2 seconds."],["SALVAGE SERVANTS","PASSIVE · Two collector drones retrieve crates from up to 900 units away, one at a time. You still pilot your ship."],["PEACE OF MIND","PASSIVE · Take Your Time grants 8 seconds of invulnerability to asteroid and outpost damage."],["THE LAZY VOYAGE","PASSIVE · Once per expedition, when the return timer expires, gain 120 emergency seconds to reach the station. No autopilot."]];
+ const slothNodes=TREE.filter(n=>n.path==='ursa'&&!n.capstone);
+ if(slothNodes.length!==SLOTH.length)throw new Error('Sloth pathway requires 15 upgrades');
+ slothNodes.forEach((n,i)=>{n.name=SLOTH[i][0];n.desc=SLOTH[i][1];n.sloth=true;n.slothIndex=i+1});
  const wrathNodes=TREE.filter(n=>n.path==='scorpius'&&!n.capstone);
  if(wrathNodes.length!==WRATH.length)throw new Error('Wrath pathway requires 15 upgrades');
  wrathNodes.forEach((n,i)=>{n.name=WRATH[i][0];n.desc=WRATH[i][1];n.wrath=true;n.wrathIndex=i+1});
@@ -93,12 +97,12 @@
   persist();
  }
  function owned(id){const n=BY_ID[id];return id==='pr-root'?prestigeLevel()>0:!!n&&prestigeLevel()>=(n.capstone?20:1)&&save.prestigeNodes?.[id]===true}
- function canBuy(n){return !active&&!owned(n.id)&&prestigePoints()>=1&&(n.capstone?prestigeLevel()>=20:(n.wrath||n.greed)&&prestigeLevel()>=1&&owned(n.parent))}
+ function canBuy(n){return !active&&!owned(n.id)&&prestigePoints()>=1&&(n.capstone?prestigeLevel()>=20:(n.wrath||n.greed||n.sloth)&&prestigeLevel()>=1&&owned(n.parent))}
  function purchaseNode(n){
   if(!canBuy(n))return;
   save.prestigePoints-=1;
   (save.prestigeNodes??={})[n.id]=true;
-  const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':n.id==='pr-draco-4-1'?'midas':n.id==='pr-draco-4-7'?'lastlaugh':n.id==='pr-draco-capstone'?'eltanin':null;
+  const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':n.id==='pr-draco-4-1'?'midas':n.id==='pr-draco-4-7'?'lastlaugh':n.id==='pr-draco-capstone'?'eltanin':n.id==='pr-ursa-3-1'?'timewarp':n.id==='pr-ursa-3-3'?'taketime':n.id==='pr-ursa-capstone'?'alcor':null;
   if(newlyUnlocked)autoEquipPrestigeAbility(newlyUnlocked);
   persist();renderTree();renderClasses();renderAbilities();renderGameAbilityBar();window.updatePrestigeUI?.();
  }
@@ -155,11 +159,11 @@
   for(const btn of el('prestigeNodes').children){
    const n=BY_ID[btn.dataset.node];const active=selected===n.id;
    btn.classList.toggle('selected',active);btn.classList.toggle('owned',owned(n.id));
-   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):owned(n.id)?'★ OWNED':n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):(n.wrath||n.greed)?(canBuy(n)?'AVAILABLE · 1 PP':prestigeLevel()<1?'LOCKED · PRESTIGE 1':!owned(n.parent)?'LOCKED · PREREQUISITE':'NEED 1 PP'):'COMING SOON')+'</small>';
+   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):owned(n.id)?'★ OWNED':n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):(n.wrath||n.greed||n.sloth)?(canBuy(n)?'AVAILABLE · 1 PP':prestigeLevel()<1?'LOCKED · PRESTIGE 1':!owned(n.parent)?'LOCKED · PREREQUISITE':'NEED 1 PP'):'COMING SOON')+'</small>';
   }
   const n=BY_ID[selected],path=PATHS.find(p=>p.id===n.path);
-  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(n.wrath||n.greed)?n.name:(path.constellation+' · '+path.label);
-  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':(n.wrath||n.greed)?(n.wrath?'Scorpius · Wrath':'Draco · Greed')+' pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
+  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(n.wrath||n.greed||n.sloth)?n.name:(path.constellation+' · '+path.label);
+  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':(n.wrath||n.greed||n.sloth)?(n.wrath?'Scorpius · Wrath':'Draco · Greed')+' pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
   if(n.capstone||n.wrath||n.greed){
    const button=document.createElement('button');button.type='button';
    button.textContent=owned(n.id)?'PERMANENTLY OWNED':n.capstone&&prestigeLevel()<20?'REQUIRES PRESTIGE 20':!n.capstone&&!owned(n.parent)?'UNLOCK PREVIOUS NODE':'UNLOCK UPGRADE · 1 PP';
@@ -206,14 +210,14 @@
   if(!window.confirm('PRESTIGE '+(level+1)+'?\n\nCost: '+fmt(cost)+' gold.\nAll gold, regular research, discovered formations and equipped research abilities will reset.\nYou keep your cosmetics, Scrap and permanent Prestige Points.\nYou gain '+reward+' Prestige Point'+(reward===1?'':'s')+', +1,000 starting gold, and permanent earnings multipliers at Prestige 1, 10, 20 and 40.\n\nThis cannot be undone.'))return;
   // Preserve player settings and cosmetic purchases, not gameplay progression.
   const next=level+1,points=prestigePoints()+reward;
-  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula','midas','lastlaugh','eltanin'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
+  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula','midas','lastlaugh','eltanin','timewarp','taketime','alcor'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
   if(!equippedPermanent.includes('dedication')){
    const free=equippedPermanent.indexOf(null);
    if(free>=0)equippedPermanent[free]='dedication';
   }
-  const retained={keybinds:save.keybinds,scrap:save.scrap,customShip:save.customShip,customOwned:save.customOwned,customSlots:save.customSlots,prestigeNodes:{...save.prestigeNodes,'pr-root':true},prestigeAbilitySlotsVersion:2};
+  const retained={keybinds:save.keybinds,scrap:save.scrap,customShip:save.customShip,customOwned:save.customOwned,customSlots:save.customSlots,prestigeNodes:{...save.prestigeNodes,'pr-root':true},prestigeAbilitySlotsVersion:3};
   save={...defaults,...retained,
-   prestigeLevel:next,prestigePoints:points,prestigePointScheduleVersion:2,prestigeNodes:retained.prestigeNodes,prestigeAbilitySlotsVersion:2,
+   prestigeLevel:next,prestigePoints:points,prestigePointScheduleVersion:2,prestigeNodes:retained.prestigeNodes,prestigeAbilitySlotsVersion:3,
    gold:1000,core:0,speed:0,fuel:0,returnfuel:0,hullbonus:0,selectedClass:'hoarder',
    shipLevels:{},shipSpent:{},luckLevels:{},luckSpent:{},bonusLevels:{},bonusSpent:{},profitLevels:{},profitSpent:{},radarLevels:{},radarSpent:{},legacySpent:{},
    abilityLoadout:equippedPermanent,
@@ -236,7 +240,7 @@
   if(viewTab==='prestige'){buildTree();renderTree()}
  };
  // Permanent expedition capstone effects. Pathways intentionally remain placeholders.
- let shaulaCooldown=0,alcorClock=5,shaulaZones=[];
+ let shaulaCooldown=0,shaulaZones=[];
  const isClearedRock=rock=>shaulaZones.some(z=>Math.hypot(rock.x-z.x,rock.y-z.y)<=1000);
  function clearShaulaRocks(){
   if(!shaulaZones.length)return;
@@ -272,24 +276,11 @@
   if(!active||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.target.closest('input,textarea,select'))return;
   if(e.code==='KeyR'&&!Object.values(save.keybinds||{}).includes('KeyR')){e.preventDefault();activateAlsephina()}
  });
- window.prestigeCapstoneRunStart=function(){shaulaCooldown=0;alcorClock=5;shaulaZones=[];updateActionButtons()};
+ window.prestigeCapstoneRunStart=function(){shaulaCooldown=0;shaulaZones=[];updateActionButtons()};
  window.prestigeCapstoneRunEnd=function(){shaulaZones=[];updateActionButtons()};
  window.prestigeCapstoneTick=function(dt){
   if(!active)return;
   if(shaulaCooldown>0)shaulaCooldown=Math.max(0,shaulaCooldown-dt);
-  if(hasPrestigeCapstone('ursa')){
-   alcorClock-=dt;
-   if(alcorClock<=0){
-    alcorClock+=5;
-    let collected=0;
-    for(let i=crates.length-1;i>=0;i--){
-     const c=crates[i];
-     if(Math.hypot(c.x-player.x,c.y-player.y)>750)continue;
-     crates.splice(i,1);collectCrate(c);collected++;
-    }
-    if(collected)notify('ALCOR — '+collected+' CRATES AUTOMATICALLY COLLECTED');
-   }
-  }
   clearShaulaRocks();updateActionButtons();
  };
  window.updatePrestigeUI();
