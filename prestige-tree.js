@@ -84,7 +84,7 @@
  if(TREE.length!==81)throw new Error('Prestige tree layout must contain exactly 81 nodes');
  const BY_ID=Object.fromEntries(TREE.map(n=>[n.id,n]));
  let selected='pr-root',viewTab='normal',zoom=.32,panX=0,panY=0,pointer=null,rendered=false;
- const fmt=v=>Math.floor(v).toLocaleString('en-GB');
+ const fmt=v=>{if(v<1e9)return Math.floor(v).toLocaleString('en-GB');const exponent=Math.floor(Math.log10(v));const mantissa=(v/Math.pow(10,exponent)).toFixed(3);return mantissa+'×E'+exponent;};
  function prestigeLevel(){return Math.max(0,Math.min(40,Math.trunc(Number(save.prestigeLevel)||0)))}
  function nextCost(){return Math.ceil(1000*Math.pow(3,prestigeLevel())-1e-9)}
  function prestigePoints(){return Math.max(0,Math.floor(Number(save.prestigePoints)||0))}
