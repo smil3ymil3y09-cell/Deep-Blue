@@ -1599,7 +1599,7 @@ function bronzeChanceAtLevelOne(){return .12/20}
 function bronzeChance(){return bronzeChanceAtLevelOne()*luckLevel('l14')}
 function siphonChance(){const l=luckLevel('l03');return l?l===10?.75:(.08+(l-1)*.075):0}
 function collectCrate(c){if(window.geminiCanCollect?.()===false)return;window.geminiOnCollect?.(c);runTaskStats.crates++;taskEvent('crates');if(['golden','obsidian','magma'].includes(c.kind)){runTaskStats[c.kind]++;taskEvent(c.kind)}
- const kind=c.kind||'ordinary';let value=c.value||1;value+=kind==='golden'?2*profitLevel('p05'):kind==='obsidian'?5*profitLevel('p06'):kind==='magma'?10*profitLevel('p07'):profitLevel('p01');if(kind==='golden')value*=1+.1*profitLevel('p11');if(kind==='obsidian')value*=1+.1*profitLevel('p12');if(kind==='magma')value*=1+.1*profitLevel('p13');if(streakCount>=15&&Math.random()<siphonChance())value*=3;
+ const kind=c.kind||'ordinary';let value=c.value||1;value+=kind==='golden'?2*profitLevel('p05'):kind==='obsidian'?5*profitLevel('p06'):kind==='magma'?10*profitLevel('p07'):profitLevel('p01');if(kind==='golden')value*=1+.1*profitLevel('p11');if(kind==='obsidian')value*=1+.1*profitLevel('p12');if(kind==='magma')value*=1+.1*profitLevel('p13');if(!c.dracoCrown&&streakCount>=15&&Math.random()<siphonChance())value*=3;
  if(bonusLevel('b19')>0)value*=1+Math.min(bonusLevel('b19'),Math.floor(streakCount/10)*.5);
  if(isClass('hoarder'))value*=2;value=window.dracoCrateBonus?.(c,value)??value;haul+=value;streakCount++;profitCratesCollected++;if(profitLevel('p10')&&profitCratesCollected%5===0)haul+=profitLevel('p10');
  if(equipped('b12')&&dodgeCharges<1+(equipped('b13')?bonusLevel('b13'):0))dodgeChargeClock+=bonusLevel('b12')*.1;
