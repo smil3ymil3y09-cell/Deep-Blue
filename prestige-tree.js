@@ -74,6 +74,10 @@
  const slothNodes=TREE.filter(n=>n.path==='ursa'&&!n.capstone);
  if(slothNodes.length!==SLOTH.length)throw new Error('Sloth pathway requires 15 upgrades');
  slothNodes.forEach((n,i)=>{n.name=SLOTH[i][0];n.desc=SLOTH[i][1];n.sloth=true;n.slothIndex=i+1});
+ const GEMINI=[["LOADED DICE","ACTIVE · Reroll ordinary crates within 600 units; each has a 20% chance to become a random rare crate. 60s cooldown."],["SECOND HEART","ACTIVE · Heal 50% maximum hull, rounded up. Excess healing grants up to 5 shields. 90s cooldown."],["MIRROR IMAGE","ACTIVE · Deploy a 20-second holographic decoy that attracts nearby outpost fire. 75s cooldown."],["LINKED UP","ACTIVE · Stop and slow the world to 10% while aiming. Right-click to teleport up to 1,500 units; cannot collect for 10 seconds afterward. 90s cooldown."],["TREASURE RAIN","ACTIVE · Scatter 20 ordinary and 3 rare crates around your ship. 150s cooldown."],["OVERCHARGE","ACTIVE · Triple acceleration for 10 seconds, without a speed cap. 45s cooldown."],["ABSOLUTE ZERO","ACTIVE · Become intangible to asteroids and hostile bullets for 8 seconds. 100s cooldown."],["DOUBLE OR NOTHING","ACTIVE · Once per expedition, 50% chance to double your haul; otherwise lose 25%."],["RESTART","PASSIVE · If destroyed at least 10,000 units out, reappear at the station with one hull, no abilities and unlimited time. Fly to your destroyed ship to regain full hull, abilities and your haul. Once per expedition."],["BLACK HOLE POCKET","ACTIVE · Pull crates from 1,200 units away for 12 seconds while completely immobilised. 80s cooldown."],["X-RAY VISION","ACTIVE · Reveal valuable formations and rare crates on radar within 5,000 units for 30 seconds. 120s cooldown."],["QUANTUM REFUND","ACTIVE · Refresh cooldowns of other equipped active abilities, excluding once-per-expedition abilities. 180s cooldown."],["LAST RESORT","ACTIVE · Sacrifice half of your remaining hull to gain 20 seconds of invulnerability and disable nearby outposts. 120s cooldown."],["PARALLEL UNIVERSE","ACTIVE · For 20 seconds, every collected crate generates one duplicate crate that cannot duplicate itself. 150s cooldown."],["WILDCARD","ACTIVE · No cooldown; sacrifice one hull to activate a random eligible Gemini power. Requires at least two remaining hull."]];
+ const geminiNodes=TREE.filter(n=>n.path==='gemini'&&!n.capstone);
+ if(geminiNodes.length!==GEMINI.length)throw new Error('Gemini pathway requires 15 upgrades');
+ geminiNodes.forEach((n,i)=>{n.name=GEMINI[i][0];n.desc=GEMINI[i][1];n.gemini=true;n.geminiIndex=i+1});
  const wrathNodes=TREE.filter(n=>n.path==='scorpius'&&!n.capstone);
  if(wrathNodes.length!==WRATH.length)throw new Error('Wrath pathway requires 15 upgrades');
  wrathNodes.forEach((n,i)=>{n.name=WRATH[i][0];n.desc=WRATH[i][1];n.wrath=true;n.wrathIndex=i+1});
@@ -97,12 +101,12 @@
   persist();
  }
  function owned(id){const n=BY_ID[id];return id==='pr-root'?prestigeLevel()>0:!!n&&prestigeLevel()>=(n.capstone?20:1)&&save.prestigeNodes?.[id]===true}
- function canBuy(n){return !active&&!owned(n.id)&&prestigePoints()>=1&&(n.capstone?prestigeLevel()>=20:(n.wrath||n.greed||n.sloth)&&prestigeLevel()>=1&&owned(n.parent))}
+ function canBuy(n){return !active&&!owned(n.id)&&prestigePoints()>=1&&(n.capstone?prestigeLevel()>=20:(n.wrath||n.greed||n.sloth||n.gemini)&&prestigeLevel()>=1&&owned(n.parent))}
  function purchaseNode(n){
   if(!canBuy(n))return;
   save.prestigePoints-=1;
   (save.prestigeNodes??={})[n.id]=true;
-  const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':n.id==='pr-draco-4-1'?'midas':n.id==='pr-draco-4-7'?'lastlaugh':n.id==='pr-draco-capstone'?'eltanin':n.id==='pr-ursa-3-1'?'timewarp':n.id==='pr-ursa-3-3'?'taketime':n.id==='pr-ursa-capstone'?'alcor':null;
+  const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':n.id==='pr-draco-4-1'?'midas':n.id==='pr-draco-4-7'?'lastlaugh':n.id==='pr-draco-capstone'?'eltanin':n.id==='pr-ursa-3-1'?'timewarp':n.id==='pr-ursa-3-3'?'taketime':n.id==='pr-ursa-capstone'?'alcor':n.path==='gemini'&&!n.capstone?['loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','restart','blackhole','xray','refund','lastresort','parallel','wildcard'][n.geminiIndex-1]:n.id==='pr-gemini-capstone'?'castor':null;
   if(newlyUnlocked)autoEquipPrestigeAbility(newlyUnlocked);
   persist();renderTree();renderClasses();renderAbilities();renderGameAbilityBar();window.updatePrestigeUI?.();
  }
@@ -159,12 +163,12 @@
   for(const btn of el('prestigeNodes').children){
    const n=BY_ID[btn.dataset.node];const active=selected===n.id;
    btn.classList.toggle('selected',active);btn.classList.toggle('owned',owned(n.id));
-   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):owned(n.id)?'★ OWNED':n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):(n.wrath||n.greed||n.sloth)?(canBuy(n)?'AVAILABLE · 1 PP':prestigeLevel()<1?'LOCKED · PRESTIGE 1':!owned(n.parent)?'LOCKED · PREREQUISITE':'NEED 1 PP'):'COMING SOON')+'</small>';
+   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):owned(n.id)?'★ OWNED':n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):(n.wrath||n.greed||n.sloth||n.gemini)?(canBuy(n)?'AVAILABLE · 1 PP':prestigeLevel()<1?'LOCKED · PRESTIGE 1':!owned(n.parent)?'LOCKED · PREREQUISITE':'NEED 1 PP'):'COMING SOON')+'</small>';
   }
   const n=BY_ID[selected],path=PATHS.find(p=>p.id===n.path);
-  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(n.wrath||n.greed||n.sloth)?n.name:(path.constellation+' · '+path.label);
-  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':(n.wrath||n.greed||n.sloth)?(n.wrath?'Scorpius · Wrath':n.greed?'Draco · Greed':'Ursa Major · Sloth')+' pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
-  if(n.capstone||n.wrath||n.greed||n.sloth){
+  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(n.wrath||n.greed||n.sloth||n.gemini)?n.name:(path.constellation+' · '+path.label);
+  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':(n.wrath||n.greed||n.sloth||n.gemini)?(n.wrath?'Scorpius · Wrath':n.greed?'Draco · Greed':n.sloth?'Ursa Major · Sloth':'Gemini · Abilities')+' pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
+  if(n.capstone||n.wrath||n.greed||n.sloth||n.gemini){
    const button=document.createElement('button');button.type='button';
    button.textContent=owned(n.id)?'PERMANENTLY OWNED':n.capstone&&prestigeLevel()<20?'REQUIRES PRESTIGE 20':!n.capstone&&!owned(n.parent)?'UNLOCK PREVIOUS NODE':'UNLOCK UPGRADE · 1 PP';
    button.disabled=!canBuy(n);
@@ -210,14 +214,14 @@
   if(!window.confirm('PRESTIGE '+(level+1)+'?\n\nCost: '+fmt(cost)+' gold.\nAll gold, regular research, discovered formations and equipped research abilities will reset.\nYou keep your cosmetics, Scrap and permanent Prestige Points.\nYou gain '+reward+' Prestige Point'+(reward===1?'':'s')+', +1,000 starting gold, and permanent earnings multipliers at Prestige 1, 10, 20 and 40.\n\nThis cannot be undone.'))return;
   // Preserve player settings and cosmetic purchases, not gameplay progression.
   const next=level+1,points=prestigePoints()+reward;
-  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula','midas','lastlaugh','eltanin','timewarp','taketime','alcor'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
+  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula','midas','lastlaugh','eltanin','timewarp','taketime','alcor','loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','restart','blackhole','xray','refund','lastresort','parallel','wildcard','castor'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
   if(!equippedPermanent.includes('dedication')){
    const free=equippedPermanent.indexOf(null);
    if(free>=0)equippedPermanent[free]='dedication';
   }
-  const retained={keybinds:save.keybinds,scrap:save.scrap,customShip:save.customShip,customOwned:save.customOwned,customSlots:save.customSlots,prestigeNodes:{...save.prestigeNodes,'pr-root':true},prestigeAbilitySlotsVersion:3};
+  const retained={keybinds:save.keybinds,scrap:save.scrap,customShip:save.customShip,customOwned:save.customOwned,customSlots:save.customSlots,prestigeNodes:{...save.prestigeNodes,'pr-root':true},prestigeAbilitySlotsVersion:4};
   save={...defaults,...retained,
-   prestigeLevel:next,prestigePoints:points,prestigePointScheduleVersion:2,prestigeNodes:retained.prestigeNodes,prestigeAbilitySlotsVersion:3,
+   prestigeLevel:next,prestigePoints:points,prestigePointScheduleVersion:2,prestigeNodes:retained.prestigeNodes,prestigeAbilitySlotsVersion:4,
    gold:1000,core:0,speed:0,fuel:0,returnfuel:0,hullbonus:0,selectedClass:'hoarder',
    shipLevels:{},shipSpent:{},luckLevels:{},luckSpent:{},bonusLevels:{},bonusSpent:{},profitLevels:{},profitSpent:{},radarLevels:{},radarSpent:{},legacySpent:{},
    abilityLoadout:equippedPermanent,
