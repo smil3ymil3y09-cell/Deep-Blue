@@ -133,7 +133,7 @@
   if(!dracoRun||!has(11)||!form||form.dracoTribute)return;
   form.dracoTribute=true;
   for(let i=0;i<3;i++){
-   const angle=i*2*Math.PI/3,rad=90;
+   const angle=i*2*Math.PI/3,rad=48;
    const x=form.x+Math.cos(angle)*rad,y=form.y+Math.sin(angle)*rad;
    if(withinWorld(x,y)){
     crates.push({x,y,rare:true,kind:form.type,value:form.type==='golden'?12:form.type==='obsidian'?30:100,formation:false,rot:0});
