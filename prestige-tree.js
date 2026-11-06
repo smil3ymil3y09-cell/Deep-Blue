@@ -10,7 +10,7 @@
   {id:'vela',label:'EXPLORATION',constellation:'VELA',star:'Alsephina',color:'#71e4d9',x:5880}
  ];
  const CAPSTONES={
-  draco:'Eltanin — The Dragon’s Hoard: multiply final successfully banked expedition gold by ×25, after all other multipliers.',
+  draco:'Eltanin — The Dragon’s Hoard: EQUIP this active ability in a numbered slot and activate once each expedition to arm a ×25 final banked gold multiplier on successful return.',
   scorpius:'Shaula — The Scorpion’s Sting: equip this legendary ability in a numbered slot to erase asteroids within 1,000 units and add 100,000 unbanked gold to your haul. 10-second cooldown.',
   ursa:'Alcor — The Unseen Hand: automatically collect all crates within 750 units every 5 seconds, even through asteroids.',
   gemini:'Castor — The Divine Union: gain the full benefits of every current and future ship class simultaneously.',
@@ -31,6 +31,27 @@
   }
   TREE.push({id:'pr-'+path.id+'-capstone',name:path.star.toUpperCase(),desc:CAPSTONES[path.id],cost:1,tier:5,x:path.x,y:1730,color:path.color,path:path.id,capstone:true,parents:previous.slice()});
  }
+ // Draco / Greed: 13 permanent passives and 2 numbered-slot active abilities.
+ const GREED=[
+  ['GILDED CONTRACT','PASSIVE · All crates give ×2 gold before other earnings bonuses.'],
+  ['MIDAS TOUCH','PASSIVE · Every 10th crate collected becomes a Gilded Crate worth ×20 normal gold.'],
+  ['DRAGON’S VAULT','PASSIVE · Every 20 seconds away from the station, unbanked gold compounds by +2%.'],
+  ['METAL ALCHEMY','PASSIVE · Every 8th ordinary asteroid destroyed (including by DAN and Shaula) creates a bronze asteroid for 60 seconds.'],
+  ['ROYAL DEPOSITS','PASSIVE · Each generated Golden, Obsidian and Magma formation contains an extra Crown Crate worth 250 base gold.'],
+  ['BLOOD TAX','PASSIVE · Disabling an outpost awards an additional 2,000 unbanked gold.'],
+  ['EMERGENCY TREASURY','PASSIVE · Recover 25% of adjusted expedition earnings on failure, without Eltanin.'],
+  ['GOLDEN EPIDEMIC','PASSIVE · Bronze asteroids generate ×10 gold and can convert a nearby ordinary asteroid into another bronze asteroid every 15 seconds.'],
+  ['MIDAS SURGE','ACTIVE · Collect five Gilded Crates to charge. Equip and activate from a number slot for ×5 crate earnings over 20 seconds.'],
+  ['CROWN CHAMBER','PASSIVE · A bonus Golden Chamber appears around 6,000 distance with a central Crown Crate worth 10,000 gold.'],
+  ['ANCIENT TRIBUTE','PASSIVE · All formation crates are worth ×10. Clearing a Golden, Obsidian or Magma formation spawns three rare crates.'],
+  ['COMPOUND EMPIRE','PASSIVE · Dragon’s Vault compounds unbanked gold by +10% every 20 seconds instead of +2%.'],
+  ['DRAGON’S TRIBUTE','PASSIVE · Blood Tax now gives 25,000 unbanked gold per disabled outpost and drops five rare crates.'],
+  ['UNBREAKABLE VAULT','PASSIVE · Recover 75% of adjusted expedition earnings on failure instead of 25%, without Eltanin.'],
+  ['THE LAST LAUGH','ACTIVE · Equip and activate during the last 10 seconds of the return countdown. Dock successfully for ×10 final banked gold.']
+ ];
+ const greedNodes=TREE.filter(n=>n.path==='draco'&&!n.capstone);
+ if(greedNodes.length!==GREED.length)throw new Error('Greed pathway requires 15 upgrades');
+ greedNodes.forEach((n,i)=>{n.name=GREED[i][0];n.desc=GREED[i][1];n.greed=true;n.greedIndex=i+1});
  // Approved Scorpius route. Upgrade indices map to the binary 1-2-4-8 star path.
  const WRATH=[
   ['DAN · DESTROY ASTEROID NANOBOT','A permanent autonomous companion follows your ship, navigates among asteroids and destroys one nearby ordinary asteroid every 8 seconds. 600-unit hunting range.'],
@@ -72,19 +93,19 @@
   persist();
  }
  function owned(id){const n=BY_ID[id];return id==='pr-root'?prestigeLevel()>0:!!n&&prestigeLevel()>=(n.capstone?20:1)&&save.prestigeNodes?.[id]===true}
- function canBuy(n){return !active&&!owned(n.id)&&prestigePoints()>=1&&(n.capstone?prestigeLevel()>=20:n.wrath&&prestigeLevel()>=1&&owned(n.parent))}
+ function canBuy(n){return !active&&!owned(n.id)&&prestigePoints()>=1&&(n.capstone?prestigeLevel()>=20:(n.wrath||n.greed)&&prestigeLevel()>=1&&owned(n.parent))}
  function purchaseNode(n){
   if(!canBuy(n))return;
   save.prestigePoints-=1;
   (save.prestigeNodes??={})[n.id]=true;
-  const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':null;
+  const newlyUnlocked=n.id==='pr-scorpius-2-1'?'chunkshift':n.id==='pr-scorpius-3-2'?'extinction':n.id==='pr-scorpius-capstone'?'shaula':n.id==='pr-draco-4-1'?'midas':n.id==='pr-draco-4-7'?'lastlaugh':n.id==='pr-draco-capstone'?'eltanin':null;
   if(newlyUnlocked)autoEquipPrestigeAbility(newlyUnlocked);
   persist();renderTree();renderClasses();renderAbilities();renderGameAbilityBar();window.updatePrestigeUI?.();
  }
  function lockMessage(n){
   if(owned(n.id))return '★ PERMANENTLY UNLOCKED';
   if(n.capstone)return prestigeLevel()<20?'LOCKED — Reach Prestige 20 to purchase this capstone.':'Legendary capstone available for purchase.';
-  if(!n.wrath)return 'COMING SOON — cannot purchase this pathway yet.';
+  if(!n.wrath&&!n.greed)return 'COMING SOON — cannot purchase this pathway yet.';
   if(prestigeLevel()<1)return 'LOCKED — Prestige once to unlock the research tree.';
   if(!owned(n.parent))return 'LOCKED — First purchase '+BY_ID[n.parent].name+'.';
   if(prestigePoints()<1)return 'NEED 1 PRESTIGE POINT';
@@ -118,7 +139,7 @@
    if(n.parents)for(const id of n.parents)link(lines,BY_ID[id],n,n.color,false);
    const btn=document.createElement('button');btn.type='button';btn.className='prestige-node'+(n.root?' prestige-root':'')+(n.capstone?' prestige-capstone':'');
    btn.style.left=n.x+'px';btn.style.top=n.y+'px';btn.style.setProperty('--star',n.color);btn.dataset.node=n.id;
-   btn.setAttribute('aria-label',n.root?'A New Beginning':n.capstone?n.name+' legendary capstone':n.wrath?n.name+' permanent Wrath upgrade':PATHS.find(p=>p.id===n.path).label+' pathway, coming soon');
+   btn.setAttribute('aria-label',n.root?'A New Beginning':n.capstone?n.name+' legendary capstone':n.wrath?n.name+' permanent Wrath upgrade':n.greed?n.name+' permanent Greed upgrade':PATHS.find(p=>p.id===n.path).label+' pathway, coming soon');
    btn.onclick=()=>{selected=n.id;renderTree();el('prestigeDetail').scrollIntoView({block:'nearest',behavior:'smooth'})};
    holder.appendChild(btn);
   }
@@ -134,12 +155,12 @@
   for(const btn of el('prestigeNodes').children){
    const n=BY_ID[btn.dataset.node];const active=selected===n.id;
    btn.classList.toggle('selected',active);btn.classList.toggle('owned',owned(n.id));
-   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):owned(n.id)?'★ OWNED':n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):n.wrath?(canBuy(n)?'AVAILABLE · 1 PP':prestigeLevel()<1?'LOCKED · PRESTIGE 1':!owned(n.parent)?'LOCKED · PREREQUISITE':'NEED 1 PP'):'COMING SOON')+'</small>';
+   btn.innerHTML='<b>'+(n.root?'✦':n.capstone?'★':'✧')+' '+n.name+'</b><small>'+(n.root?(owned(n.id)?'UNLOCKED · FREE':'LOCKED'):owned(n.id)?'★ OWNED':n.capstone?(prestigeLevel()<20?'LOCKED · PRESTIGE 20':'AVAILABLE · 1 PP'):(n.wrath||n.greed)?(canBuy(n)?'AVAILABLE · 1 PP':prestigeLevel()<1?'LOCKED · PRESTIGE 1':!owned(n.parent)?'LOCKED · PREREQUISITE':'NEED 1 PP'):'COMING SOON')+'</small>';
   }
   const n=BY_ID[selected],path=PATHS.find(p=>p.id===n.path);
-  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:n.wrath?n.name:(path.constellation+' · '+path.label);
-  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':n.wrath?'Scorpius · Wrath pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
-  if(n.capstone||n.wrath){
+  const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(n.wrath||n.greed)?n.name:(path.constellation+' · '+path.label);
+  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':(n.wrath||n.greed)?(n.wrath?'Scorpius · Wrath':'Draco · Greed')+' pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
+  if(n.capstone||n.wrath||n.greed){
    const button=document.createElement('button');button.type='button';
    button.textContent=owned(n.id)?'PERMANENTLY OWNED':n.capstone&&prestigeLevel()<20?'REQUIRES PRESTIGE 20':!n.capstone&&!owned(n.parent)?'UNLOCK PREVIOUS NODE':'UNLOCK UPGRADE · 1 PP';
    button.disabled=!canBuy(n);
@@ -185,7 +206,7 @@
   if(!window.confirm('PRESTIGE '+(level+1)+'?\n\nCost: '+fmt(cost)+' gold.\nAll gold, regular research, discovered formations and equipped research abilities will reset.\nYou keep your cosmetics, Scrap and permanent Prestige Points.\nYou gain '+reward+' Prestige Point'+(reward===1?'':'s')+', +1,000 starting gold, and permanent earnings multipliers at Prestige 1, 10, 20 and 40.\n\nThis cannot be undone.'))return;
   // Preserve player settings and cosmetic purchases, not gameplay progression.
   const next=level+1,points=prestigePoints()+reward;
-  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
+  const equippedPermanent=Array.from({length:10},(_,i)=>['dedication','chunkshift','extinction','shaula','midas','lastlaugh','eltanin'].includes(save.abilityLoadout?.[i])?save.abilityLoadout[i]:null);
   if(!equippedPermanent.includes('dedication')){
    const free=equippedPermanent.indexOf(null);
    if(free>=0)equippedPermanent[free]='dedication';
