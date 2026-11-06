@@ -930,7 +930,7 @@ function wreckAwardUpgrade(){const branches=[
  const chosen=eligible[Math.floor(Math.random()*eligible.length)];chosen.levels[chosen.n.id]=(Number(chosen.levels[chosen.n.id])||0)+1;
  persist();notify('DERELICT CORE: '+chosen.n.name.toUpperCase()+' +1 LEVEL');renderAbilities();renderGameAbilityBar();
 }
-function wreckTick(dt,oldX,oldY){
+function wreckTick(dt,oldX,oldY){if(window.geminiGhost?.())return;
  const distanceFromStation=Math.hypot(player.x,player.y);const ring=distanceFromStation<10000?0:Math.floor((distanceFromStation-10000)/5000)+1;
  for(let i=0;i<=ring;i++)wreckGenerateRing(i);
  for(const w of wrecks){
@@ -1154,7 +1154,7 @@ function stationDebrisHit(s,x,y,r=16){
  const lx=(x-s.x)/STATION_TILE+STATION_W/2-.5,ly=(y-s.y)/STATION_TILE+STATION_H/2-.5;
  return s.items.debris.some(d=>!d.taken&&Math.abs((lx-d.x)*STATION_TILE)<r+13&&Math.abs((ly-d.y)*STATION_TILE)<r+9);
 }
-function stationTick(dt,oldX,oldY){
+function stationTick(dt,oldX,oldY){if(window.geminiGhost?.())return;
  const dist=Math.hypot(player.x,player.y),band=dist<5000?0:Math.floor((dist-5000)/10000)+1;
  for(let b=0;b<=band;b++)stationGenerateBand(b);
  for(const s of abandonedStations){
@@ -1876,6 +1876,7 @@ function activateDodge(){
 }
 $('dodgeMobile').addEventListener('pointerdown',e=>{e.preventDefault();activateDodge()});
 addEventListener('keydown',e=>{if(!active||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.code!==save.keybinds.dodge||e.target.closest('input,textarea,select'))return;e.preventDefault();activateDodge()});
+window.geminiRefundBrake=()=>{if(save.abilityLoadout?.includes('brake'))brakeTimer=0};
 function activateBrake(){if(window.geminiGhost?.()||window.geminiLockMovement?.()||!active||equippedBrakeSlot()<0||brakeTimer>0)return;player.vx=0;player.vy=0;brakeTimer=brakeCooldown();audioSound('ability');notify('EMERGENCY BRAKE — VELOCITY RESET!')}
 addEventListener('keydown',e=>{if(!active||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.target.closest('input,textarea,select'))return;const slot=Array.from({length:10},(_,i)=>i).find(i=>save.keybinds['slot'+i]===e.code);if(slot===undefined)return;e.preventDefault();triggerEquippedAbility(save.abilityLoadout[slot])});
 $('brakeMobile').onclick=activateBrake;addEventListener('keydown',e=>{if(!active||!flightWASD||isMobile||e.target.closest('input,textarea,select'))return;for(const [id,virtual] of [['up','KeyW'],['down','KeyS'],['left','KeyA'],['right','KeyD']])if(e.code===save.keybinds[id]){e.preventDefault();pressedKeys.add(virtual)}});addEventListener('keyup',e=>{for(const [id,virtual] of [['up','KeyW'],['down','KeyS'],['left','KeyA'],['right','KeyD']])if(e.code===save.keybinds[id])pressedKeys.delete(virtual)});addEventListener('blur',()=>pressedKeys.clear());$('launch').onclick=begin;$('abort').onclick=()=>finish(false,'RUN ABORTED');$('backmenu').onclick=()=>{$('result').style.display='none';$('game').style.display='none';$('menu').style.removeProperty('display');updateMenu()};
