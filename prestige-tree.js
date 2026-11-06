@@ -163,8 +163,8 @@
   }
   const n=BY_ID[selected],path=PATHS.find(p=>p.id===n.path);
   const heading=n.root?'A NEW BEGINNING':n.capstone?n.name:(n.wrath||n.greed||n.sloth)?n.name:(path.constellation+' · '+path.label);
-  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':(n.wrath||n.greed||n.sloth)?(n.wrath?'Scorpius · Wrath':'Draco · Greed')+' pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
-  if(n.capstone||n.wrath||n.greed){
+  el('prestigeDetail').innerHTML='<h3>'+heading+'</h3><p>'+n.desc+'</p><p>'+(n.root?'Free upon your first prestige · Permanent':n.capstone?'Legendary star capstone · 1 Prestige Point · Requires Prestige 20':(n.wrath||n.greed||n.sloth)?(n.wrath?'Scorpius · Wrath':n.greed?'Draco · Greed':'Ursa Major · Sloth')+' pathway · 1 Prestige Point · Permanent':'Pathway upgrade · 1 Prestige Point when released')+'</p><p>'+ (n.root?(owned(n.id)?'✓ Unlocked':'Prestige once to unlock'):lockMessage(n))+'</p>';
+  if(n.capstone||n.wrath||n.greed||n.sloth){
    const button=document.createElement('button');button.type='button';
    button.textContent=owned(n.id)?'PERMANENTLY OWNED':n.capstone&&prestigeLevel()<20?'REQUIRES PRESTIGE 20':!n.capstone&&!owned(n.parent)?'UNLOCK PREVIOUS NODE':'UNLOCK UPGRADE · 1 PP';
    button.disabled=!canBuy(n);
