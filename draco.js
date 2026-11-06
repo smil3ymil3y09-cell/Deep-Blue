@@ -16,10 +16,10 @@
  const bronzeCap=90;
  let collected=0,gilded=0,midasCharges=0,midasTime=0;
  let vaultClock=0,bronzeClock=0,rockKills=0,lastLaughArmed=false,eltaninArmed=false;
- let dracoRun=false;
+ let dracoRun=false,pendingBronze=[];
  function reset(){
   dracoRun=true;collected=0;gilded=0;midasCharges=0;midasTime=0;
-  vaultClock=0;bronzeClock=0;rockKills=0;lastLaughArmed=false;eltaninArmed=false;
+  vaultClock=0;bronzeClock=0;rockKills=0;pendingBronze=[];lastLaughArmed=false;eltaninArmed=false;
  }
  function end(){dracoRun=false}
  function injectCrown(form,amount){
@@ -90,10 +90,12 @@
  function destroyedRock(r){
   if(!dracoRun||!has(4)||!r||r.bronze||r.golden||counted.has(r))return;
   counted.add(r);rockKills++;
-  if(rockKills%8===0)bronzeFromRock(r);
+  if(rockKills%8===0)pendingBronze.push({x:r.x,y:r.y});
  }
  function tick(dt){
   if(!dracoRun||!active)return;
+  for(const r of pendingBronze)bronzeFromRock(r);
+  pendingBronze=[];
   if(midasTime>0)midasTime=Math.max(0,midasTime-dt);
   if(has(3)&&distance(player.x,player.y,station.x,station.y)>station.r){
    vaultClock+=dt;
