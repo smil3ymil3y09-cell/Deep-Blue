@@ -53,7 +53,7 @@
   if(!dracoRun)return originalValue;
   collected++;
   let mult=has(1)?2:1;
-  if(has(2)&&collected%10===0){
+  if(has(2)&&collected%10===0&&!c.dracoCrown){
    gilded++;
    mult*=20;
    notify('MIDAS TOUCH · GILDED CRATE ×20!');
