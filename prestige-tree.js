@@ -91,7 +91,6 @@
   return 'READY TO PURCHASE · Permanent research';
  }
  function enableTab(tab){
-  if(tab==='prestige'&&prestigeLevel()<1)return;
   viewTab=tab;
   el('normalResearch').hidden=tab!=='normal';
   el('prestigeResearch').hidden=tab!=='prestige';
@@ -177,6 +176,7 @@
  el('prestigeCenter').onclick=focusRoot;
  el('normalResearchTab').onclick=()=>enableTab('normal');
  el('prestigeResearchTab').onclick=()=>enableTab('prestige');
+ el('prestigeOpen').onclick=()=>{enableTab('prestige');el('prestigeResearch').scrollIntoView({behavior:'smooth',block:'start'})};
  function purchasePrestige(){
   if(active||prestigeLevel()>=40)return;
   const cost=nextCost(),level=prestigeLevel();
@@ -210,9 +210,9 @@
   const button=el('prestigeBuy');
   button.disabled=active||level>=40||save.gold<nextCost();
   button.textContent=level>=40?'MAX PRESTIGE REACHED':'PRESTIGE '+(level+1)+' · '+fmt(nextCost())+' GOLD · +'+pointReward(level+1)+' PP';
-  const tab=el('prestigeResearchTab');tab.hidden=level<1;
-  if(level<1&&viewTab==='prestige')enableTab('normal');
-  if(level>=1&&viewTab==='prestige'){buildTree();renderTree()}
+  const tab=el('prestigeResearchTab');tab.hidden=false;
+  el('prestigePreview').hidden=level>=1;
+  if(viewTab==='prestige'){buildTree();renderTree()}
  };
  // Permanent expedition capstone effects. Pathways intentionally remain placeholders.
  let shaulaCooldown=0,alcorClock=5,shaulaZones=[];
