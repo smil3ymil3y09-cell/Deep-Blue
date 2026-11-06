@@ -112,5 +112,5 @@ function spawnStartingResources(){
 // Drift and world-edge bounce for ordinary grey rocks only.
 function moveOrdinaryAsteroids(dt){
 const beltRockSpeed=biomeAt(player.x,player.y)===2?2:1;
-for(const r of rocks){r.x+=r.vx*dt*beltRockSpeed;r.y+=r.vy*dt*beltRockSpeed;if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}
+for(const r of rocks){r.x+=r.vx*dt*beltRockSpeed*(window.ursaAsteroidSpeed?.()??1);r.y+=r.vy*dt*beltRockSpeed*(window.ursaAsteroidSpeed?.()??1);if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}
 }
