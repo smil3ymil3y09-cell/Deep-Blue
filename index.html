@@ -236,7 +236,7 @@ function floorGold(n){return Math.floor((n+1e-9)*1000)/1000}function goldText(n)
 window.deepBlueCloudApply=(incoming)=>{if(!incoming||typeof incoming!=='object'||Array.isArray(incoming))return;save={...defaults,...incoming};save.keybinds=normalizeKeybinds(save.keybinds);taskInit();customInit();refreshCustomImage();save.selectedClass=['adventurer','brute','hoarder','hacker'].includes(save.selectedClass)?save.selectedClass:'hoarder';save.gold=floorGold(Math.max(0,Number(save.gold)||0));for(const k of ['shipLevels','shipSpent','legacySpent','luckLevels','luckSpent','bonusLevels','bonusSpent','profitLevels','profitSpent','radarLevels','radarSpent'])if(!save[k]||typeof save[k]!=='object'||Array.isArray(save[k]))save[k]={};if(!Array.isArray(save.abilityLoadout))save.abilityLoadout=Array(10).fill(null);save.prestigeLevel=Math.max(0,Math.min(40,Math.trunc(Number(save.prestigeLevel)||0)));save.prestigePoints=Math.max(0,Math.trunc(Number(save.prestigePoints)||0));save.prestigeNodes=save.prestigeNodes&&typeof save.prestigeNodes==='object'&&!Array.isArray(save.prestigeNodes)?save.prestigeNodes:{};if(save.prestigeLevel>0)save.prestigeNodes['pr-root']=true;sanitizeLoadout();migratePrestigeAbilitySlots();localStorage.setItem('deepblue-v23-standard',JSON.stringify(save));updateMenu();renderAbilities?.();renderTaskBar?.();renderGameAbilityBar?.();window.updatePrestigeUI?.();};const CLASS_INFO={adventurer:{name:'ADVENTURER',subtitle:'Exploration & evasion',perks:['×2 collection fuel capacity','×2 dodge invulnerability','×0.5 dodge cooldown']},brute:{name:'BRUTE',subtitle:'Defence & resilience',perks:['×2 maximum hull','+5 shields per expedition','Hull Dividend automatically active','×0.8 ship size']},hoarder:{name:'HOARDER',subtitle:'Salvage & profits',perks:['×2 distance calculator payout','×2 value of every collected crate type','×2.5 return time']},hacker:{name:'HACKER',subtitle:'Outpost disruption',perks:['Adds +100 units to outpost deactivation range (350 at max research)','Maximum Outpost Salvage drops (10 levels)','Outpost Radar automatically active']}};
 function renderClasses(){
  const holder=$('classChoices');if(!holder)return;holder.innerHTML='';
- const castor=hasPrestigeCapstone('gemini');
+ const castor=!!window.geminiIsClass?.('brute');
  for(const [id,info] of Object.entries(CLASS_INFO)){
   const button=document.createElement('button');button.type='button';
   button.className='classchoice'+(castor||save.selectedClass===id?' active':'');
@@ -272,7 +272,7 @@ function migratePrestigeAbilitySlots(){
  // Existing 1.x saves have already been offered Wrath abilities; only add
  // newly introduced Draco abilities without restoring intentionally unequipped powers.
  const eligible=save.prestigeAbilitySlotsVersion===3?["loaded","secondheart","mirror","linked","rain","overcharge","absolute","double","restart","blackhole","xray","refund","lastresort","parallel","wildcard","castor"]:save.prestigeAbilitySlotsVersion===2?['timewarp','taketime','alcor',...["loaded","secondheart","mirror","linked","rain","overcharge","absolute","double","restart","blackhole","xray","refund","lastresort","parallel","wildcard","castor"]]:save.prestigeAbilitySlotsVersion===1?['midas','lastlaugh','eltanin','timewarp','taketime','alcor',...["loaded","secondheart","mirror","linked","rain","overcharge","absolute","double","restart","blackhole","xray","refund","lastresort","parallel","wildcard","castor"]]:PRESTIGE_ACTIVE_ABILITIES;
- for(const id of eligible)autoEquipPrestigeAbility(id);
+ for(const id of eligible)if(id!=='restart')autoEquipPrestigeAbility(id);
  save.prestigeAbilitySlotsVersion=4;
 }
 
@@ -284,7 +284,7 @@ if(!Array.isArray(save.abilityLoadout)){
 }
 function sanitizeLoadout(){
  const used=new Set();save.abilityLoadout=Array.from({length:10},(_,i)=>{
-  const a=save.abilityLoadout[i];if(!ABILITY_NAMES[a]||used.has(a)||BONUS_ABILITIES.includes(a)&&bonusLevel(a)<1||a==='brake'&&shipLevel('s02')<1||PRESTIGE_ACTIVE_ABILITIES.includes(a)&&!prestigeAbilityUnlocked(a))return null;
+  const a=save.abilityLoadout[i];if(a==='restart'||!ABILITY_NAMES[a]||used.has(a)||BONUS_ABILITIES.includes(a)&&bonusLevel(a)<1||a==='brake'&&shipLevel('s02')<1||PRESTIGE_ACTIVE_ABILITIES.includes(a)&&!prestigeAbilityUnlocked(a))return null;
   used.add(a);return a;
  });
 }
@@ -341,7 +341,7 @@ function updateGameAbilityCooldowns(){
 }
 function renderAbilities(){
  sanitizeLoadout();const slots=$('abilitySlots');slots.innerHTML='';
- const options=['dedication','tracker',...(shipLevel('s02')>0?['brake']:[]),...BONUS_ABILITIES.filter(a=>bonusLevel(a)>0),...PRESTIGE_ACTIVE_ABILITIES.filter(prestigeAbilityUnlocked)];
+ const options=['dedication','tracker',...(shipLevel('s02')>0?['brake']:[]),...BONUS_ABILITIES.filter(a=>bonusLevel(a)>0),...PRESTIGE_ACTIVE_ABILITIES.filter(id=>id!=='restart'&&prestigeAbilityUnlocked(id))];
  for(let i=0;i<10;i++){
   const slot=document.createElement('div');slot.className='abilityslot';const current=save.abilityLoadout[i];if(current)slot.classList.add('filled');
   slot.innerHTML='<b>SLOT '+String(i+1).padStart(2,'0')+' · KEY '+keyLabel(save.keybinds['slot'+i])+'</b><strong>'+(ABILITY_NAMES[current]||'Empty')+'</strong>';
