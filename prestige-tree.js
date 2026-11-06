@@ -245,7 +245,7 @@
   rocks=rocks.filter(r=>!isClearedRock(r));
   for(const key of affected)if(!rocks.some(r=>r.chunk===key))window.wrathMarkEmptyChunk?.(key);
   goldenRocks=goldenRocks.filter(r=>!isClearedRock(r));
-  bronzeRocks=bronzeRocks.filter(r=>!isClearedRock(r));
+  bronzeRocks=bronzeRocks.filter(r=>r.dracoLife!==undefined||!isClearedRock(r));
  }
  function updateActionButtons(){
   const returnButton=el('alsephinaReturn'),bar=el('prestigeActionBar');
