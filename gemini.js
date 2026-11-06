@@ -17,7 +17,7 @@
  }
  function end(){linked=false;ghost=false;castor=false;decoy=null;pocket=null;anchor=null}
  function beginRecovery(){
-  if(!active||ghost||!owned('restart')||!equipped('restart')||used.restart||Math.hypot(player.x,player.y)<10000)return false;
+  if(!active||ghost||!owned('restart')||used.restart||Math.hypot(player.x,player.y)<10000)return false;
   used.restart=true;
   corpse={x:player.x,y:player.y};
   recovery={phase,remaining,haul,hits,shields,velocity:{x:player.vx,y:player.vy}};
@@ -67,7 +67,7 @@
   }
  }
  function activate(id,viaWildcard=false){
-  if(!alive()||!owned(id)||(!viaWildcard&&!equipped(id))||(!viaWildcard&&cd[id]>0)||used[id]||id==='restart')return false;
+  if(!alive()||(!viaWildcard&&!owned(id))||(!viaWildcard&&!equipped(id))||(!viaWildcard&&cd[id]>0)||used[id]||id==='restart')return false;
   if(viaWildcard&&id==='wildcard')return false;
   let successful=true;
   switch(id){
@@ -106,7 +106,7 @@
    case 'parallel':parallel=20;notify('PARALLEL UNIVERSE — DUPLICATE EVERY CRATE');break;
    case 'wildcard':{
     if(maxHull()-hits<=1){notify('WILDCARD — NEED AT LEAST TWO HULL');return false}
-    const pool=ids.filter(other=>other!=='wildcard'&&other!=='restart'&&owned(other)&&!used[other]&&other!=='linked');
+    const pool=ids.filter(other=>other!=='wildcard'&&other!=='restart'&&!used[other]&&other!=='linked');
     if(!pool.length){notify('WILDCARD — NO AVAILABLE POWERS');return false}
     hits++;const chosen=pool[Math.floor(Math.random()*pool.length)];
     activate(chosen,true);notify('WILDCARD — '+chosen.toUpperCase()+' · -1 HULL');return true;
@@ -161,6 +161,6 @@
  window.geminiOnCollect=onCollect;window.geminiOnDeath=onDeath;window.geminiCanCollect=canCollect;window.geminiCanDamage=canDamage;
  window.geminiIsClass=isClass;window.geminiRate=rate;window.geminiAcceleration=acceleration;window.geminiLockMovement=lockMovement;
  window.geminiGhost=()=>ghost;window.geminiAim=playerAim;window.geminiTeleport=teleport;window.geminiCancelTeleport=cancelTeleport;
- window.geminiDecoy=()=>decoy;window.geminiXray=()=>xray>0;
+ window.geminiDecoy=()=>decoy;window.geminiXray=()=>xray>0;window.geminiLinked=()=>linked;
  window.geminiDebug=()=>({ghost,corpse,castor,linked,unstable,cd:{...cd},used:{...used},absolute,blackhole,parallel});
 })();
