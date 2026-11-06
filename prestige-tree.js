@@ -280,6 +280,7 @@
   if(!active||e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.target.closest('input,textarea,select'))return;
   if(e.code==='KeyR'&&!Object.values(save.keybinds||{}).includes('KeyR')){e.preventDefault();activateAlsephina()}
  });
+ window.prestigeRefundShaula=()=>{if(save.abilityLoadout?.includes('shaula'))shaulaCooldown=0};
  window.prestigeCapstoneRunStart=function(){shaulaCooldown=0;shaulaZones=[];updateActionButtons()};
  window.prestigeCapstoneRunEnd=function(){shaulaZones=[];updateActionButtons()};
  window.prestigeCapstoneTick=function(dt){
