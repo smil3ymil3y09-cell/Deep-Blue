@@ -106,7 +106,7 @@
    case 'parallel':parallel=20;notify('PARALLEL UNIVERSE — DUPLICATE EVERY CRATE');break;
    case 'wildcard':{
     if(maxHull()-hits<=1){notify('WILDCARD — NEED AT LEAST TWO HULL');return false}
-    const pool=ids.filter(other=>other!=='wildcard'&&other!=='restart'&&!used[other]&&other!=='linked');
+    const pool=ids.filter(other=>other!=='wildcard'&&other!=='restart'&&!used[other]);
     if(!pool.length){notify('WILDCARD — NO AVAILABLE POWERS');return false}
     hits++;const chosen=pool[Math.floor(Math.random()*pool.length)];
     activate(chosen,true);notify('WILDCARD — '+chosen.toUpperCase()+' · -1 HULL');return true;
