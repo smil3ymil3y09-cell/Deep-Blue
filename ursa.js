@@ -8,7 +8,7 @@
  let bonusTime=0,emergencyUsed=false,magnetClock=0,drones=[],lastPhase='collect';
  const hasAlcor=()=>save.prestigeLevel>=20&&save.prestigeNodes?.['pr-ursa-capstone']===true;
  const normalSpeed=()=>Math.hypot(player.vx,player.vy);
- function collectNear(x,y,range,limit){
+ function collectNear(x,y,range,limit){if(window.geminiCanCollect?.()===false)return 0;
   let count=0;
   const candidates=crates.map((c,i)=>({c,i,d:Math.hypot(c.x-x,c.y-y)})).filter(e=>e.d<=range).sort((a,b)=>a.d-b.d).slice(0,limit);
   for(const {c} of candidates){const at=crates.indexOf(c);if(at<0)continue;crates.splice(at,1);collectCrate(c);count++}
@@ -57,7 +57,7 @@
  function bulletSpeed(){return warp>0&&own(11)?.1:1}
  function outpostSpeed(){return warp>0&&own(11)?.1:1}
  function protectedShip(){return shield>0&&own(14)}
- function droneTick(dt){
+ function droneTick(dt){if(window.geminiCanCollect?.()===false)return;
   if(!own(13))return;
   for(const d of drones){
    if(!d.carrying&&!d.target){
