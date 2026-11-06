@@ -1882,7 +1882,7 @@ addEventListener('keydown',e=>{if(!active||e.repeat||e.altKey||e.ctrlKey||e.meta
 $('brakeMobile').onclick=activateBrake;addEventListener('keydown',e=>{if(!active||!flightWASD||isMobile||e.target.closest('input,textarea,select'))return;for(const [id,virtual] of [['up','KeyW'],['down','KeyS'],['left','KeyA'],['right','KeyD']])if(e.code===save.keybinds[id]){e.preventDefault();pressedKeys.add(virtual)}});addEventListener('keyup',e=>{for(const [id,virtual] of [['up','KeyW'],['down','KeyS'],['left','KeyA'],['right','KeyD']])if(e.code===save.keybinds[id])pressedKeys.delete(virtual)});addEventListener('blur',()=>pressedKeys.clear());$('launch').onclick=begin;$('abort').onclick=()=>finish(false,'RUN ABORTED');$('backmenu').onclick=()=>{$('result').style.display='none';$('game').style.display='none';$('menu').style.removeProperty('display');updateMenu()};
 cv.addEventListener('contextmenu',e=>{if(window.geminiTeleport?.(e))e.preventDefault()});
 addEventListener('keydown',e=>{if(e.code==='Escape'&&window.geminiCancelTeleport?.())e.preventDefault()});
-if(!isMobile){cv.addEventListener('pointermove',e=>{if(!flightWASD){mouse.x=e.clientX;mouse.y=e.clientY}});cv.addEventListener('pointerdown',e=>{if(!flightWASD){mouse.x=e.clientX;mouse.y=e.clientY}})}
+if(!isMobile){cv.addEventListener('pointermove',e=>{if(!flightWASD||window.geminiLinked?.()){mouse.x=e.clientX;mouse.y=e.clientY}});cv.addEventListener('pointerdown',e=>{if(!flightWASD||window.geminiLinked?.()){mouse.x=e.clientX;mouse.y=e.clientY}})}
 function finish(success,title){
  if(!active)return;
  if(!success&&title==='SHIP DESTROYED'&&window.geminiOnDeath?.())return;
@@ -2090,6 +2090,12 @@ if(equippedTrackerSlot()>=0){
 if(window.geminiLinked?.()){
  const aim=window.geminiAim?.({clientX:mouse.x,clientY:mouse.y});
  if(aim){ctx.save();ctx.strokeStyle=aim.blocked?'#ff5368':'#b79bff';ctx.lineWidth=3;const px=W/2+(aim.x-player.x)*CAMERA_SCALE,py=H/2+(aim.y-player.y)*CAMERA_SCALE;ctx.beginPath();ctx.arc(px,py,22,0,Math.PI*2);ctx.stroke();ctx.font='bold 12px system-ui';ctx.fillStyle=ctx.strokeStyle;ctx.fillText(aim.blocked?'BLOCKED':'RMB TO TELEPORT',px-42,py-28);ctx.restore()}
+}
+if(window.geminiGhost?.()){
+ const g=window.geminiDebug?.(),c=g?.corpse;
+ if(c){const a=Math.atan2(c.y-player.y,c.x-player.x),radius=Math.min(W,H)*.32,px=W/2+Math.cos(a)*radius,py=H/2+Math.sin(a)*radius;
+ ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.fillStyle='#8ceaff';ctx.shadowColor='#52caff';ctx.shadowBlur=14;ctx.beginPath();ctx.moveTo(15,0);ctx.lineTo(-9,-9);ctx.lineTo(-5,0);ctx.lineTo(-9,9);ctx.closePath();ctx.fill();ctx.restore();
+ ctx.save();ctx.fillStyle='#b9f5ff';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText('YOUR SHIP · '+Math.round(Math.hypot(c.x-player.x,c.y-player.y))+'u',px,py-18);ctx.restore()}
 }
 try{stationTags()}catch(err){if(!window._stationTagError){window._stationTagError=true;console.error('Station tag failed:',err)}}
 // Derelict proximity signal: no radar, research requirement, or distant tracking.
