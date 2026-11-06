@@ -96,7 +96,7 @@
    case 'xray':xray=30;notify('X-RAY VISION — TREASURE REVEALED');break;
    case 'refund':
     for(const key of Object.keys(cd))if(key!=='refund'&&key!=='wildcard'&&!used[key])cd[key]=0;
-    notify('QUANTUM REFUND — COOLDOWNS RESET');break;
+    window.wrathRefundCooldowns?.();window.ursaRefundCooldowns?.();window.prestigeRefundShaula?.();window.geminiRefundBrake?.();notify('QUANTUM REFUND — COOLDOWNS RESET');break;
    case 'lastresort':
     if(maxHull()-hits<=1){successful=false;notify('LAST RESORT — INSUFFICIENT HULL');break}
     hits=Math.min(maxHull()-1,hits+Math.ceil((maxHull()-hits)*.5));
