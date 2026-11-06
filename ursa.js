@@ -60,21 +60,23 @@
  function droneTick(dt){
   if(!own(13))return;
   for(const d of drones){
-   if(!d.carrying){
-    const available=crates.filter(c=>!drones.some(other=>other!==d&&other.carrying===c)&&Math.hypot(c.x-player.x,c.y-player.y)<=900);
+   if(!d.carrying&&!d.target){
+    const available=crates.filter(c=>!drones.some(other=>other!==d&&other.target===c)&&Math.hypot(c.x-player.x,c.y-player.y)<=900);
     available.sort((a,b)=>Math.hypot(a.x-d.x,a.y-d.y)-Math.hypot(b.x-d.x,b.y-d.y));
-    if(available.length)d.carrying=available[0];
+    if(available.length)d.target=available[0];
    }
-   const target=d.carrying&&crates.includes(d.carrying)?d.carrying:player;
-   if(d.carrying&&!crates.includes(d.carrying))d.carrying=null;
-   const dx=target.x-d.x,dy=target.y-d.y,len=Math.hypot(dx,dy);
-   const step=Math.min(len,600*dt);
+   if(d.target&&!crates.includes(d.target))d.target=null;
+   const destination=d.carrying?player:d.target||player;
+   const dx=destination.x-d.x,dy=destination.y-d.y,len=Math.hypot(dx,dy),step=Math.min(len,600*dt);
    if(len>0){d.x+=dx/len*step;d.y+=dy/len*step}
-   if(d.carrying&&Math.hypot(d.x-d.carrying.x,d.y-d.carrying.y)<22){
-    const c=d.carrying;d.carrying=null;const i=crates.indexOf(c);
-    if(i>=0){crates.splice(i,1);collectCrate(c)}
+   if(d.target&&!d.carrying&&Math.hypot(d.x-d.target.x,d.y-d.target.y)<22){
+    const c=d.target;d.target=null;
+    const i=crates.indexOf(c);if(i>=0){crates.splice(i,1);d.carrying=c}
    }
-   if(!d.carrying&&Math.hypot(d.x-player.x,d.y-player.y)>1500){d.x=player.x;d.y=player.y}
+   if(d.carrying&&Math.hypot(d.x-player.x,d.y-player.y)<25){
+    const c=d.carrying;d.carrying=null;collectCrate(c);
+   }
+   if(!d.carrying&&!d.target&&Math.hypot(d.x-player.x,d.y-player.y)>1500){d.x=player.x;d.y=player.y}
   }
  }
  function draw(camX,camY,ctx){
