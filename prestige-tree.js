@@ -86,7 +86,7 @@
  let selected='pr-root',viewTab='normal',zoom=.32,panX=0,panY=0,pointer=null,rendered=false;
  const fmt=v=>Math.floor(v).toLocaleString('en-GB');
  function prestigeLevel(){return Math.max(0,Math.min(40,Math.trunc(Number(save.prestigeLevel)||0)))}
- function nextCost(){return Math.ceil(1000*Math.pow(1.5,prestigeLevel())-1e-9)}
+ function nextCost(){return Math.ceil(1000*Math.pow(3,prestigeLevel())-1e-9)}
  function prestigePoints(){return Math.max(0,Math.floor(Number(save.prestigePoints)||0))}
  // Prestige 1: +5, levels 2-35: +2, 36-39: +1, and level 40: +3.
  function pointReward(level){return level===1?5:level===40?3:level>=36?1:level>=2?2:0}
