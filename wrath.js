@@ -25,6 +25,7 @@
  function removeOrdinary(r,source){
   const i=rocks.indexOf(r);
   if(i<0)return false;
+  window.dracoRockDestroyed?.(r);
   rocks.splice(i,1);markRock(r);checkEmptyChunk(r.chunk);
   if(source==='dan'){
    danKills++;
