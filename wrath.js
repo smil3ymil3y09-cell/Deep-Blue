@@ -327,6 +327,7 @@
  });
  window.wrathActivateShift=activateShift;
  window.wrathActivatePulse=pulse;
+ window.wrathRefundCooldowns=()=>{if(save.abilityLoadout?.includes('chunkshift')){shiftCharges=maxCharges();shiftRecharge=0}if(save.abilityLoadout?.includes('extinction'))pulseCooldown=0};
  window.wrathAbilityStatus=abilityStatus;
  window.wrathHas=has;
  window.wrathStart=start;
