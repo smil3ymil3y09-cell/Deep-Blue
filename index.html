@@ -1818,7 +1818,7 @@ function updateOutposts(dt,oldX,oldY){
   const vx=player.x-oldX,vy=player.y-oldY;
   const t=clamp(((o.x-oldX)*vx+(o.y-oldY)*vy)/(vx*vx+vy*vy||1),0,1);
   const px=oldX+vx*t,py=oldY+vy*t;
-  if(Math.hypot(px-o.x,py-o.y)<(Math.max(29+17*shipScale(),bonusLevel('b10')*25)+(isClass('hacker')?100:0))){
+  if(!window.geminiGhost?.()&&Math.hypot(px-o.x,py-o.y)<(Math.max(29+17*shipScale(),bonusLevel('b10')*25)+(isClass('hacker')?100:0))){
    disableOutpost(o,'ship');continue;
   }
   const d=Math.hypot(player.x-o.x,player.y-o.y);
@@ -1827,11 +1827,12 @@ function updateOutposts(dt,oldX,oldY){
   // 5-second cycle; the final 2 seconds are completely silent.
   while(o.shotsFired<OUTPOST_BURST_SHOTS &&
         o.fireClock>=o.shotsFired*OUTPOST_SHOT_INTERVAL){
-   const angle=Math.atan2(player.y-o.y,player.x-o.x);
+   const decoy=window.geminiDecoy?.(),target=decoy&&Math.hypot(decoy.x-o.x,decoy.y-o.y)<OUTPOST_RANGE?decoy:player;
+   const angle=Math.atan2(target.y-o.y,target.x-o.x);
    outpostBullets.push({x:o.x,y:o.y,vx:Math.cos(angle)*OUTPOST_BULLET_SPEED,vy:Math.sin(angle)*OUTPOST_BULLET_SPEED});
    o.shotsFired++;
   }
-  o.fireClock+=dt*(window.ursaOutpostSpeed?.()??1);
+  o.fireClock+=dt*(window.ursaOutpostSpeed?.()??1)*(window.geminiLinked?.()?0.1:1);
   if(o.fireClock>=OUTPOST_CYCLE_DURATION){
    o.fireClock-=OUTPOST_CYCLE_DURATION;
    o.shotsFired=0;
@@ -1841,7 +1842,7 @@ function updateOutposts(dt,oldX,oldY){
  const halfW=W/2,halfH=H/2;
  for(let i=outpostBullets.length-1;i>=0;i--){
   const b=outpostBullets[i],beforeX=b.x,beforeY=b.y;
-  b.x+=b.vx*dt*(window.ursaBulletSpeed?.()??1);b.y+=b.vy*dt*(window.ursaBulletSpeed?.()??1);
+  b.x+=b.vx*dt*(window.ursaBulletSpeed?.()??1)*(window.geminiLinked?.()?0.1:1);b.y+=b.vy*dt*(window.ursaBulletSpeed?.()??1)*(window.geminiLinked?.()?0.1:1);
   // A bullet is independent of its outpost after firing and passes through asteroids.
   // Remove it only after leaving the visible screen.
   if(Math.abs(b.x-player.x)>halfW+16||Math.abs(b.y-player.y)>halfH+16){outpostBullets.splice(i,1);continue}
@@ -1916,7 +1917,7 @@ function update(dt){window.geminiTick?.(dt);updateAltar(dt);updateNebulaPatches(
 // The pull grows smoothly and exceeds thrust by 29,500; past 30,000 it stops and drag vanishes.
 // This is deliberately independent of weather and does not display a warning.
 const voidDistance=Math.hypot(player.x,player.y);
-if(voidDistance>27500&&voidDistance<=30000){
+if(!window.geminiGhost?.()&&!window.geminiLockMovement?.()&&voidDistance>27500&&voidDistance<=30000){
  const voidProgress=Math.min(1,Math.max(0,(voidDistance-27500)/2000));
  const thrustAcceleration=105*(1+save.speed*.1)*(slipstreamTimer>0?1+bonusLevel('b14')*.02:1);
  const pullRatio=.04+2.46*voidProgress*voidProgress;
@@ -1930,7 +1931,7 @@ const velocity=Math.hypot(player.vx,player.vy);
 const alignment=moving&&velocity>0?(dx*player.vx+dy*player.vy)/(mag*velocity):0;
 const dampFactor=1+shipLevel("s03")*.05+shipLevel("s11")*.05;const damping=(!moving?(flightWASD&&!isMobile?1.8:0.85):0.45*Math.max(0,1-alignment))*dampFactor;
 const reverseAssist=moving&&velocity>1&&alignment<-.05?shipLevel('s03')*.05*Math.max(0,-alignment):0;const drag=voidDistance>30000?1:Math.exp(-(damping+reverseAssist)*dt);player.vx*=drag;player.vy*=drag;if(window.geminiLockMovement?.()){player.vx=0;player.vy=0}const oldX=player.x,oldY=player.y;player.x+=player.vx*dt;player.y+=player.vy*dt;
-if(dodgeBurstTimer>0){const burstStep=Math.min(dt,dodgeBurstTimer);const dodgeSpeed=420*(1+bonusLevel('b03')*.05);player.x+=dodgeDirX*dodgeSpeed*burstStep;player.y+=dodgeDirY*dodgeSpeed*burstStep;dodgeBurstTimer-=burstStep;}wreckTick(dt,oldX,oldY);if(!active)return;stationTick(dt,oldX,oldY);if(!active)return;maxRunDistance=Math.max(maxRunDistance,Math.hypot(player.x,player.y));invuln=Math.max(0,invuln-dt);
+if(dodgeBurstTimer>0&&!window.geminiLockMovement?.()){const burstStep=Math.min(dt,dodgeBurstTimer);const dodgeSpeed=420*(1+bonusLevel('b03')*.05);player.x+=dodgeDirX*dodgeSpeed*burstStep;player.y+=dodgeDirY*dodgeSpeed*burstStep;dodgeBurstTimer-=burstStep;}wreckTick(dt,oldX,oldY);if(!active)return;stationTick(dt,oldX,oldY);if(!active)return;maxRunDistance=Math.max(maxRunDistance,Math.hypot(player.x,player.y));invuln=Math.max(0,invuln-dt);
 // Baseline chance 12% per 0.16s spawn check; core adds 0.01 percentage points per level.
 spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;spawnOrdinaryResourceTick();
  // Bronze asteroids in the belt have a 3.5% baseline chance per spawn check.
@@ -1952,20 +1953,20 @@ spawnClock+=dt;while(spawnClock>=.16){spawnClock-=.16;spawnOrdinaryResourceTick(
  }else spawnAround(500,1450,spawnBronze);
  }
 }refreshRockField(oldX,oldY);
-moveOrdinaryAsteroids(dt);
+moveOrdinaryAsteroids(dt*(window.geminiLinked?.()?0.1:1));
 crates=crates.filter(c=>c.formation||Math.abs(c.x-player.x)<1900&&Math.abs(c.y-player.y)<1900);
  const beltBronzeBonus=biomeAt(player.x,player.y)===2;
  for(const b of bronzeRocks){
   // Belt bronze asteroids streak inward, then abruptly slow at 600 units.
   if(b.flyIn&&Math.hypot(b.x-player.x,b.y-player.y)<=600)b.flyIn=false;
   const bronzeSpeed=b.flyIn?3.5:(b.spawnedInBelt?1/3:1);
-  b.x+=b.vx*dt*bronzeSpeed*(window.ursaAsteroidSpeed?.()??1);b.y+=b.vy*dt*bronzeSpeed*(window.ursaAsteroidSpeed?.()??1);
+  b.x+=b.vx*dt*bronzeSpeed*(window.ursaAsteroidSpeed?.()??1)*(window.geminiLinked?.()?0.1:1);b.y+=b.vy*dt*bronzeSpeed*(window.ursaAsteroidSpeed?.()??1)*(window.geminiLinked?.()?0.1:1);
   if(b.flyIn&&Math.hypot(b.x-player.x,b.y-player.y)<=600)b.flyIn=false;
   if(Math.hypot(b.x-player.x,b.y-player.y)<=100+bonusLevel('b17')*5)
    haul+=dt*(3+luckLevel('l15')*.1)*(1+.01*profitLevel('p08'))*(beltBronzeBonus?2:1)*(window.dracoBronzeMultiplier?.()||1);
  }
  bronzeRocks=bronzeRocks.filter(b=>withinWorld(b.x,b.y)&&Math.abs(b.x-player.x)<2300&&Math.abs(b.y-player.y)<2300);
-window.prestigeCapstoneTick?.(dt);window.wrathTick?.(dt);window.dracoTick?.(dt);window.ursaTick?.(dt);updateGameAbilityCooldowns();
+if(!window.geminiGhost?.()){window.prestigeCapstoneTick?.(dt);window.wrathTick?.(dt);window.dracoTick?.(dt);window.ursaTick?.(dt)}updateGameAbilityCooldowns();
 for(let i=crates.length-1;i>=0&&window.geminiCanCollect?.()!==false;i--){const c=crates[i];const reach=37+(equipped('b16')?bonusLevel('b16')*10:0);if(Math.abs(c.x-player.x)<reach&&Math.abs(c.y-player.y)<reach){collectCrate(c);crates.splice(i,1)}}checkFormationCompletions();
 
 const allRocks=[...rocks,...goldenRocks.filter(r=>Math.abs(r.x-player.x)<r.s/2+60&&Math.abs(r.y-player.y)<r.s/2+60),...bronzeRocks];const radius=17*shipScale();
@@ -1976,7 +1977,7 @@ else if(touching.length&&!drillUsed&&shipLevel('s07')>0&&speedNow>=Math.max(250,
 else if(touching.length&&invuln<=0&&dodgeIFrames<=0&&!window.ursaProtected?.()&&window.geminiCanDamage?.()!==false){const r=touching[0];invuln=1.3;audioSound('impact');if(shields>0){shields--;notify('SHIELD ABSORBED IMPACT!')}else{hits++;runTaskStats.damage++;streakCount=0;trySecondWind();if(dedicationTriggered)dedicationClean=false;if(hits>=maxHull()){finish(false,'SHIP DESTROYED');return}notify(`HULL HIT! ${maxHull()-hits} IMPACTS REMAINING`)}const knock=Math.max(0,1-shipLevel('s08')*.04);player.vx+=(player.x-r.x>=0?1:-1)*65*knock;player.vy+=(player.y-r.y>=0?1:-1)*65*knock;if(shipLevel('s06')>0){const list=r.bronze?bronzeRocks:r.golden?goldenRocks:rocks;const index=list.indexOf(r);if(index>=0){window.dracoRockDestroyed?.(r);list.splice(index,1)}haul+=shipLevel('s06');notify('ASTEROID DISINTEGRATED · +'+shipLevel('s06')+' GOLD')}}
 updateOutposts(dt,oldX,oldY);if(!active)return;
 // The rescue only triggers beyond 500 units, with <=5 seconds remaining and exactly one hull.
-if(phase==='return'&&remaining<=5&&remaining>0&&Math.hypot(player.x,player.y)>500&&maxHull()-hits===1&&save.dedicatingEquipped&&!dedicationTriggered){
+if(!window.geminiGhost?.()&&phase==='return'&&remaining<=5&&remaining>0&&Math.hypot(player.x,player.y)>500&&maxHull()-hits===1&&save.dedicatingEquipped&&!dedicationTriggered){
  dedicationTriggered=true;dedicationClean=true;hits--;notify('✦ DEDICATING MYSELF — +1 HULL! RETURN UNHARMED FOR +5 GOLD');
 }
 if(phase==='return'&&!window.geminiGhost?.()&&Math.hypot(player.x,player.y)<station.r){finish(true,'SALVAGE DELIVERED');return}toastTime-=dt;$('dodgeMobile').style.display=isMobile?'block':'none';$('dodgeMobile').disabled=dodgeCharges<=0;$('dodgeMobile').textContent=dodgeCharges<=0?'DODGE '+Math.ceil(dodgeCooldownTimer)+'s':'DODGE '+dodgeCharges+'x';$('dodgeHUD').textContent='DODGE '+(dodgeCharges<=0?Math.ceil(dodgeCooldownTimer)+'s':dodgeCharges+' READY')+(dodgeIFrames>0?' · INVULNERABLE':'');if(toastTime<=0)$('toast').style.display='none';$('brakeMobile').style.display=isMobile&&equippedBrakeSlot()>=0?'block':'none';$('brakeMobile').disabled=brakeTimer>0;$('brakeMobile').textContent=brakeTimer>0?'BRAKE '+Math.ceil(brakeTimer)+'s':'BRAKE';$('phase').textContent=window.geminiGhost?.()?'RESTART · RECOVER YOUR SHIP':(phase==='collect'?(hasPrestigeCapstone('vela')?'FREE EXPLORATION':'SCAVENGING'):'RETURN TO STATION')+(drillActive?' · DRILL '+Math.floor(DRILL_DIST[shipLevel('s07')]-drillTravel):'');$('phase').className=phase==='collect'?'':'warn';$('timer').textContent=window.geminiGhost?.()?'∞ · RECOVERY':phase==='collect'&&hasPrestigeCapstone('vela')?'∞ · MANUAL RETURN':Math.max(0,remaining).toFixed(1)+'s';$('hp').textContent=(shipLevel('s10')>0?'HAL '+Math.ceil((60-shipLevel('s14'))-halTimer)+'s · ':'')+'HULL '+(isMobile?Math.max(0,maxHull()-hits)+' LEFT':'◆'.repeat(Math.min(40,maxHull()-hits))+'◇'.repeat(Math.min(40,hits)))+(shields?' 🛡'+shields:'');updateTrackerHUD();$('haul').textContent=goldText(haul)+' ◆ · STREAK '+streakCount;$('distance').textContent=Math.round(Math.hypot(player.x,player.y));$('maxdistance').textContent=Math.floor(maxRunDistance);$('distmult').textContent='×'+Math.max(1,maxRunDistance/1000).toFixed(3);const angle=Math.atan2(-player.y,-player.x)*180/Math.PI;$('direction').textContent=phase==='return'?`STATION ${Math.round(angle)}° from right`:'STATION ◉'}
@@ -2084,6 +2085,10 @@ if(equippedTrackerSlot()>=0){
   ctx.fillStyle='rgba(4,11,27,.84)';ctx.fillRect(textX-tw/2-7,textY-14,tw+14,20);
   ctx.fillStyle=color;ctx.fillText(text,textX,textY);ctx.restore();
  }
+}
+if(window.geminiLinked?.()){
+ const aim=window.geminiAim?.({clientX:mouse.x,clientY:mouse.y});
+ if(aim){ctx.save();ctx.strokeStyle=aim.blocked?'#ff5368':'#b79bff';ctx.lineWidth=3;const px=W/2+(aim.x-player.x)*CAMERA_SCALE,py=H/2+(aim.y-player.y)*CAMERA_SCALE;ctx.beginPath();ctx.arc(px,py,22,0,Math.PI*2);ctx.stroke();ctx.font='bold 12px system-ui';ctx.fillStyle=ctx.strokeStyle;ctx.fillText(aim.blocked?'BLOCKED':'RMB TO TELEPORT',px-42,py-28);ctx.restore()}
 }
 try{stationTags()}catch(err){if(!window._stationTagError){window._stationTagError=true;console.error('Station tag failed:',err)}}
 // Derelict proximity signal: no radar, research requirement, or distant tracking.
