@@ -241,7 +241,7 @@
  function clearShaulaRocks(){
   if(!shaulaZones.length)return;
   const affected=new Set();
-  for(const r of rocks)if(isClearedRock(r)){window.wrathRecordDestroyed?.(r);if(r.chunk)affected.add(r.chunk)}
+  for(const r of rocks)if(isClearedRock(r)){window.dracoRockDestroyed?.(r);window.wrathRecordDestroyed?.(r);if(r.chunk)affected.add(r.chunk)}
   rocks=rocks.filter(r=>!isClearedRock(r));
   for(const key of affected)if(!rocks.some(r=>r.chunk===key))window.wrathMarkEmptyChunk?.(key);
   goldenRocks=goldenRocks.filter(r=>!isClearedRock(r));
