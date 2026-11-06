@@ -107,6 +107,7 @@
  window.ursaInitialTime=initialTime;window.ursaReturnTime=returnTime;
  window.ursaTimeRate=timeRate;window.ursaCrateCollected=timeBonus;window.ursaEmergency=emergency;
  window.ursaAsteroidSpeed=asteroidSpeed;window.ursaBulletSpeed=bulletSpeed;window.ursaOutpostSpeed=outpostSpeed;
- window.ursaProtected=protectedShip;window.ursaActivateWarp=activateWarp;window.ursaActivateRest=activateRest;window.ursaActivateAlcor=activateAlcor;window.ursaAbilityStatus=status;
+ window.ursaProtected=protectedShip;window.ursaActivateWarp=activateWarp;window.ursaActivateRest=activateRest;window.ursaActivateAlcor=activateAlcor;window.ursaRefundCooldowns=()=>{if(save.abilityLoadout?.includes('timewarp'))warpCD=0;if(save.abilityLoadout?.includes('taketime'))restCD=0};
+ window.ursaAbilityStatus=status;
  window.ursaDebug=()=>({warp,warpCD,rest,restCD,shield,alcor,bonusTime,emergencyUsed,droneCount:drones.length});
 })();
