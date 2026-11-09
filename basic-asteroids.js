@@ -64,7 +64,7 @@ function rockOverlapsWreck(x,y,rockRadius=0){
  }
  return false
 }
-function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key)||window.wrathIsClearedChunk?.(key))return;rockChunks.add(key);const random=chunkRandom(cx,cy);const count=BASIC_ASTEROID_CONFIG.minPerChunk+Math.floor(random()*BASIC_ASTEROID_CONFIG.additionalPerChunk);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*BASIC_ASTEROID_CONFIG.sizeSteps));const x=(cx+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK,y=(cy+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK,id=key+':'+i;if(!withinWorld(x,y)||altarContains(x,y)||Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2)||window.wrathSkipRock?.(id,x,y))continue;rocks.push({id,x,y,s,vx:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,vy:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,rot:random()*6.28,chunk:key})}}
+function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key)||window.wrathIsClearedChunk?.(key))return;rockChunks.add(key);const nearX=cx>0?cx*ROCK_CHUNK:cx< -1?(cx+1)*ROCK_CHUNK:0,nearY=cy>0?cy*ROCK_CHUNK:cy< -1?(cy+1)*ROCK_CHUNK:0;if(nearX*nearX+nearY*nearY>=BIOME_LIMIT*BIOME_LIMIT)return;const random=chunkRandom(cx,cy);const count=BASIC_ASTEROID_CONFIG.minPerChunk+Math.floor(random()*BASIC_ASTEROID_CONFIG.additionalPerChunk);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*BASIC_ASTEROID_CONFIG.sizeSteps));const x=(cx+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK,y=(cy+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK,id=key+':'+i;if(!withinWorld(x,y)||altarContains(x,y)||Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2)||window.wrathSkipRock?.(id,x,y))continue;rocks.push({id,x,y,s,vx:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,vy:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,rot:random()*6.28,chunk:key})}}
 // Load enough existing-density chunks to cover the wider mobile camera.
 // Desktop retains the original 2-chunk loading and 3-chunk retention radius.
 function rockChunkViewRadius(){
@@ -79,18 +79,16 @@ function maintainRockField(x,y){
  for(let ix=cx-radius.x;ix<=cx+radius.x;ix++)for(let iy=cy-radius.y;iy<=cy+radius.y;iy++)ensureRockChunk(ix,iy);
 }
 function refreshRockField(oldX,oldY){
- const travel=Math.hypot(player.x-oldX,player.y-oldY);
- const steps=Math.min(48,Math.max(1,Math.ceil(travel/(ROCK_CHUNK*.55))));
- for(let i=0;i<=steps;i++){
-  const t=i/steps;
-  maintainRockField(oldX+(player.x-oldX)*t,oldY+(player.y-oldY)*t);
- }
+ // The game only draws/tests collisions at the destination. Previously up to
+ // 48 intermediate positions each generated chunks that were immediately discarded.
+ // Generate the destination field directly, even at extreme ship speeds.
+ maintainRockField(player.x,player.y);
  const cx=Math.floor(player.x/ROCK_CHUNK),cy=Math.floor(player.y/ROCK_CHUNK),radius=rockChunkViewRadius();
- rocks=rocks.filter(r=>{
-  const parts=r.chunk.split(',');
-  return Math.abs(+parts[0]-cx)<=radius.x+1&&Math.abs(+parts[1]-cy)<=radius.y+1;
- });
- rockChunks=new Set(rocks.map(r=>r.chunk));
+ const keep=(key)=>{const comma=key.indexOf(',');return Math.abs(Number(key.slice(0,comma))-cx)<=radius.x+1&&Math.abs(Number(key.slice(comma+1))-cy)<=radius.y+1};
+ rocks=rocks.filter(r=>keep(r.chunk));
+ // Keep loaded empty chunks until leaving the area; otherwise every frame
+ // regenerated empty chunks in the Void and formation clearance zones.
+ rockChunks=new Set([...rockChunks].filter(keep));
 }
 
 // Called once per existing 0.16-second spawn check (shared with bronze spawns).
