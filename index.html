@@ -2081,7 +2081,7 @@ function radarTerrainLayer(r,range){
   radarTerrainCache={canvas,size,seed:expeditionSeed,updated:-Infinity};
  }
  const cache=radarTerrainCache;
- if(now-cache.updated>=300||cache.range!==range){
+ if(now-cache.updated>=300||cache.range===undefined||Math.abs(cache.range-range)>Math.max(100,range*.1)){
   const c=cache.canvas.getContext('2d');c.clearRect(0,0,size,size);
   const tile=3;
   for(let yy=-r;yy<r;yy+=tile)for(let xx=-r;xx<r;xx+=tile){
