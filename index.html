@@ -2071,13 +2071,35 @@ function radarPing(dt){
   for(const s of abandonedStations)if(!s.destroyed)add(s.x,s.y,'#9da6b2')}
  radarContacts=contacts;
 }
+// Weather sampling previously ran thousands of biomeAt() calls on EVERY frame.
+// Cache terrain for 300ms; ship, contacts and sweep still update every frame.
+let radarTerrainCache=null;
+function radarTerrainLayer(r,range){
+ const size=Math.ceil(r*2),now=performance.now();
+ if(!radarTerrainCache||radarTerrainCache.size!==size||radarTerrainCache.seed!==expeditionSeed){
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+  radarTerrainCache={canvas,size,seed:expeditionSeed,updated:-Infinity};
+ }
+ const cache=radarTerrainCache;
+ if(now-cache.updated>=300||cache.range!==range){
+  const c=cache.canvas.getContext('2d');c.clearRect(0,0,size,size);
+  const tile=3;
+  for(let yy=-r;yy<r;yy+=tile)for(let xx=-r;xx<r;xx+=tile){
+   if(xx*xx+yy*yy>r*r)continue;
+   const kind=biomeAt(player.x+(xx+tile/2)/r*range,player.y+(yy+tile/2)/r*range);
+   if(kind!==0){c.globalAlpha=kind<0?.7:.38;c.fillStyle=kind<0?'#03030c':BIOME_COLORS[kind];c.fillRect(xx+r,yy+r,tile+1,tile+1)}
+  }
+  c.globalAlpha=1;cache.updated=now;cache.range=range;
+ }
+ return cache.canvas;
+}
 function drawRadar(){
  if(!radarDetection()&&!window.geminiXray?.()&&!window.geminiGhost?.())return;
  const size=isMobile?116:150,r=size/2-13,cx=W/2,cy=H-size/2-9,range=window.geminiGhost?.()?Math.max(12000,Math.hypot(player.x,player.y)+2000):window.geminiXray?.()?5000:radarRadius();
  ctx.save();ctx.translate(cx,cy);ctx.fillStyle='rgba(5,18,35,.91)';ctx.strokeStyle='#396c86';ctx.lineWidth=2;
  ctx.beginPath();ctx.arc(0,0,size/2,0,Math.PI*2);ctx.fill();ctx.stroke();
  ctx.save();ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.clip();
- if(biomeGrid){const tile=2;for(let yy=-r;yy<r;yy+=tile)for(let xx=-r;xx<r;xx+=tile){if(xx*xx+yy*yy>r*r)continue;const kind=biomeAt(player.x+(xx+tile/2)/r*range,player.y+(yy+tile/2)/r*range);if(kind!==0){ctx.globalAlpha=kind<0?.7:.38;ctx.fillStyle=kind<0?'#03030c':BIOME_COLORS[kind];ctx.fillRect(xx,yy,tile+1,tile+1)}}ctx.globalAlpha=1;}
+ if(biomeGrid)ctx.drawImage(radarTerrainLayer(r,range),-r,-r);
  ctx.strokeStyle='rgba(91,159,180,.28)';ctx.lineWidth=1;
  for(const k of [.33,.66,1]){ctx.beginPath();ctx.arc(0,0,r*k,0,Math.PI*2);ctx.stroke()}
  ctx.beginPath();ctx.moveTo(-r,0);ctx.lineTo(r,0);ctx.moveTo(0,-r);ctx.lineTo(0,r);ctx.stroke();
