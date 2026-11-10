@@ -263,7 +263,7 @@ function brakeCooldown(){return 60-(shipLevel('s02')-1)*50/9}
 function equippedBrakeSlot(){return (Number(save.shipLevels.s02)||0)>0?Math.max(-1,Math.min(9,Number(save.brakeSlot??-1))):-1}
 function equippedTrackerSlot(){const v=Number(save.trackerSlot);return Number.isInteger(v)&&v>=0&&v<10?v:-1}
 const BONUS_ABILITIES=['b04','b05','b09','b12','b13','b15','b16'];
-const ABILITY_NAMES={b04:'Manual Flight',b05:'Hull Dividend',b09:'Outpost Radar',b12:'Dodge Recharge',b13:'Emergency Reserve',b15:'Perfect Evasion',b16:'Crate Magnet',brake:'Emergency Brake',tracker:'Asteroid Tracker',dedication:'Dedicating Myself',chunkshift:'Chunkshift',extinction:'Extinction Pulse',shaula:'Shaula · Scorpion’s Sting',midas:'Midas Surge',lastlaugh:'The Last Laugh',eltanin:'Eltanin · Dragon’s Hoard',timewarp:'Time Warp',taketime:'Take Your Time',alcor:'Alcor · Unseen Hand',loaded:'Loaded Dice',secondheart:'Second Heart',mirror:'Mirror Image',linked:'Linked Up',rain:'Treasure Rain',overcharge:'Overcharge',absolute:'Absolute Zero',double:'Double or Nothing',restart:'Restart',blackhole:'Black Hole Pocket',xray:'X-Ray Vision',refund:'Quantum Refund',lastresort:'Last Resort',parallel:'Parallel Universe',wildcard:'Wildcard',castor:'Castor · Twin Paradox'};
+const ABILITY_NAMES={b04:'Manual Flight',b05:'Hull Dividend',b09:'Outpost Radar',b12:'Dodge Recharge',b13:'Emergency Reserve',b15:'Perfect Evasion',b16:'Crate Magnet',brake:'Emergency Brake',fuelDump:'Fuel Dump',tracker:'Asteroid Tracker',dedication:'Dedicating Myself',chunkshift:'Chunkshift',extinction:'Extinction Pulse',shaula:'Shaula · Scorpion’s Sting',midas:'Midas Surge',lastlaugh:'The Last Laugh',eltanin:'Eltanin · Dragon’s Hoard',timewarp:'Time Warp',taketime:'Take Your Time',alcor:'Alcor · Unseen Hand',loaded:'Loaded Dice',secondheart:'Second Heart',mirror:'Mirror Image',linked:'Linked Up',rain:'Treasure Rain',overcharge:'Overcharge',absolute:'Absolute Zero',double:'Double or Nothing',restart:'Restart',blackhole:'Black Hole Pocket',xray:'X-Ray Vision',refund:'Quantum Refund',lastresort:'Last Resort',parallel:'Parallel Universe',wildcard:'Wildcard',castor:'Castor · Twin Paradox'};
 const PRESTIGE_ACTIVE_ABILITIES=['chunkshift','extinction','shaula','midas','lastlaugh','eltanin','timewarp','taketime','alcor','loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','restart','blackhole','xray','refund','lastresort','parallel','wildcard','castor'];
 function prestigeAbilityUnlocked(id){return id==='chunkshift'?save.prestigeLevel>=1&&save.prestigeNodes?.['pr-scorpius-2-1']===true:id==='extinction'?save.prestigeLevel>=1&&save.prestigeNodes?.['pr-scorpius-3-2']===true:id==='shaula'?hasPrestigeCapstone('scorpius'):id==='midas'?save.prestigeLevel>=1&&save.prestigeNodes?.['pr-draco-4-1']===true:id==='lastlaugh'?save.prestigeLevel>=1&&save.prestigeNodes?.['pr-draco-4-7']===true:id==='eltanin'?hasPrestigeCapstone('draco'):id==='timewarp'?save.prestigeLevel>=1&&save.prestigeNodes?.['pr-ursa-3-1']===true:id==='taketime'?save.prestigeLevel>=1&&save.prestigeNodes?.['pr-ursa-3-3']===true:id==='alcor'?hasPrestigeCapstone('ursa'):id==='castor'?hasPrestigeCapstone('gemini'):['loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','restart','blackhole','xray','refund','lastresort','parallel','wildcard'].includes(id)?save.prestigeLevel>=1&&save.prestigeNodes?.['pr-gemini-'+['1-0','2-0','2-1','3-0','3-1','3-2','3-3','4-0','4-1','4-2','4-3','4-4','4-5','4-6','4-7'][['loaded','secondheart','mirror','linked','rain','overcharge','absolute','double','restart','blackhole','xray','refund','lastresort','parallel','wildcard'].indexOf(id)]]===true:false}
 function autoEquipPrestigeAbility(id){if(!prestigeAbilityUnlocked(id))return;sanitizeLoadout();if(save.abilityLoadout.includes(id))return;const free=save.abilityLoadout.indexOf(null);if(free>=0)save.abilityLoadout[free]=id}
@@ -284,7 +284,7 @@ if(!Array.isArray(save.abilityLoadout)){
 }
 function sanitizeLoadout(){
  const used=new Set();save.abilityLoadout=Array.from({length:10},(_,i)=>{
-  const a=save.abilityLoadout[i];if(a==='restart'||!ABILITY_NAMES[a]||used.has(a)||BONUS_ABILITIES.includes(a)&&bonusLevel(a)<1||a==='brake'&&shipLevel('s02')<1||PRESTIGE_ACTIVE_ABILITIES.includes(a)&&!prestigeAbilityUnlocked(a))return null;
+  const a=save.abilityLoadout[i];if(a==='restart'||!ABILITY_NAMES[a]||used.has(a)||BONUS_ABILITIES.includes(a)&&bonusLevel(a)<1||a==='brake'&&shipLevel('s02')<1||a==='fuelDump'&&shipLevel('s16')<1||PRESTIGE_ACTIVE_ABILITIES.includes(a)&&!prestigeAbilityUnlocked(a))return null;
   used.add(a);return a;
  });
 }
@@ -303,6 +303,7 @@ addEventListener('keydown',e=>{if(!waitingForBind)return;if(e.code==='Escape'){w
 function triggerEquippedAbility(id){
  if(!active||window.geminiGhost?.()||!equipped(id))return;
  if(id==='brake')activateBrake();
+ else if(id==='fuelDump')activateFuelDump();
  else if(id==='chunkshift')window.wrathActivateShift?.();
  else if(id==='extinction')window.wrathActivatePulse?.();
  else if(id==='shaula')window.prestigeActivateShaula?.();
@@ -319,7 +320,7 @@ function renderGameAbilityBar(){
  const bar=$('gameAbilityBar');if(!bar)return;bar.innerHTML='';
  for(let i=0;i<10;i++){
   const id=save.abilityLoadout[i];if(!id)continue;
-  const btn=document.createElement('button'),manual=id==='brake'||PRESTIGE_ACTIVE_ABILITIES.includes(id);
+  const btn=document.createElement('button'),manual=id==='brake'||id==='fuelDump'||PRESTIGE_ACTIVE_ABILITIES.includes(id);
   btn.className=manual?'':'passive';btn.dataset.ability=id;
   btn.title=ABILITY_NAMES[id]+(manual?' · Press '+keyLabel(save.keybinds['slot'+i])+' to activate':' · Automatic');
   btn.innerHTML='<strong>'+keyLabel(save.keybinds['slot'+i])+'</strong>'+ABILITY_NAMES[id];
@@ -330,6 +331,13 @@ function updateGameAbilityCooldowns(){
  const bar=$('gameAbilityBar');if(!bar)return;
  for(const btn of bar.children){
   const id=btn.dataset.ability;
+  if(id==='fuelDump'){
+   const ready=active&&phase==='collect';btn.disabled=!ready;
+   const key=keyLabel(save.keybinds['slot'+save.abilityLoadout.indexOf(id)]);
+   const html='<strong>'+key+'</strong>Fuel Dump · '+(ready?'READY':'RETURN ACTIVE');
+   if(btn.innerHTML!==html)btn.innerHTML=html;
+   continue;
+  }
   if(!PRESTIGE_ACTIVE_ABILITIES.includes(id))continue;
   const state=id==='shaula'?window.prestigeShaulaStatus?.():['midas','lastlaugh','eltanin'].includes(id)?window.dracoAbilityStatus?.(id):['timewarp','taketime','alcor'].includes(id)?window.ursaAbilityStatus?.(id):["loaded","secondheart","mirror","linked","rain","overcharge","absolute","double","restart","blackhole","xray","refund","lastresort","parallel","wildcard","castor"].includes(id)?window.geminiStatus?.(id):window.wrathAbilityStatus?.(id);
   if(!state)continue;
@@ -341,7 +349,7 @@ function updateGameAbilityCooldowns(){
 }
 function renderAbilities(){
  sanitizeLoadout();const slots=$('abilitySlots');slots.innerHTML='';
- const options=['dedication','tracker',...(shipLevel('s02')>0?['brake']:[]),...BONUS_ABILITIES.filter(a=>bonusLevel(a)>0),...PRESTIGE_ACTIVE_ABILITIES.filter(id=>id!=='restart'&&prestigeAbilityUnlocked(id))];
+ const options=['dedication','tracker',...(shipLevel('s02')>0?['brake']:[]),...(shipLevel('s16')>0?['fuelDump']:[]),...BONUS_ABILITIES.filter(a=>bonusLevel(a)>0),...PRESTIGE_ACTIVE_ABILITIES.filter(id=>id!=='restart'&&prestigeAbilityUnlocked(id))];
  for(let i=0;i<10;i++){
   const slot=document.createElement('div');slot.className='abilityslot';const current=save.abilityLoadout[i];if(current)slot.classList.add('filled');
   slot.innerHTML='<b>SLOT '+String(i+1).padStart(2,'0')+' · KEY '+keyLabel(save.keybinds['slot'+i])+'</b><strong>'+(ABILITY_NAMES[current]||'Empty')+'</strong>';
@@ -373,7 +381,8 @@ const SHIP_RESEARCH=[
 {id:'s12',name:'Drill Compression',max:20,base:400,r:1.50,desc:'Reduce drill entry speed requirement by 3% per level, with a minimum entry speed.',x:1450,y:680,req:[['s07',5]]},
 {id:'s13',name:'Reactive Plating',max:10,base:750,r:2.25,desc:'+1 protective shield layer per level; shields absorb hits before hull.',x:1900,y:680,req:[['s08',10],['s09',3]]},
 {id:'s14',name:'HAL Speed',max:20,base:5000,r:1.30,desc:'HAL repairs faster: every level reduces the repair interval by 1 second, from 60s to 40s at Lv20.',x:1040,y:400,req:[['s10',1],['s11',10]]},
-{id:'s15',name:'Miniaturisation',max:3,prices:[10000,50000,250000],desc:'Ship width becomes ×0.8, ×0.6, then ×0.5 of its original size. Final SHIP research.',x:1350,y:170,req:[['s14',20],['s12',10],['s13',5]]}
+{id:'s15',name:'Miniaturisation',max:3,prices:[10000,50000,250000],desc:'Ship width becomes ×0.8, ×0.6, then ×0.5 of its original size. Final ship-size upgrade.',x:1350,y:170,req:[['s14',20],['s12',10],['s13',5]]},
+ {id:'s16',name:'Fuel Dump',max:1,prices:[20000],desc:'Active ability: equip in a slot to end SCAVENGING immediately and begin the normal RETURN timer. Does not teleport you or bank your cargo.',x:2350,y:960,req:[['s05',1]]}
 ];
 const LUCK_RESEARCH=[
 {id:'l01',name:'Cluster Frequency',max:100,base:15,r:1.12,desc:'+1 percentage point chance for ordinary crate spawns to become clusters per level.',x:880,y:1840,req:[]},
@@ -733,7 +742,7 @@ function renderShipTree(){
  const buyBtn=document.createElement('button');buyBtn.textContent=l>=n.max?'MAX LEVEL':unlocked?'BUY LEVEL':'LOCKED';buyBtn.disabled=l>=n.max||!unlocked||save.gold<cost;buyBtn.onclick=()=>isRadar?purchaseRadar(n.id):isProfit?purchaseProfit(n.id):isBonus?purchaseBonus(n.id):isLuck?purchaseLuck(n.id):purchaseShip(n.id);detail.appendChild(buyBtn);
 
 }
-function purchaseShip(id){const n=SHIP_BY_ID[id],l=shipLevel(id);if(l>=n.max||!shipUnlocked(n))return;const cost=shipCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.shipLevels[id]=l+1;(save.shipSpent[id]??=[]).push(cost);persist();updateMenu()}
+function purchaseShip(id){const n=SHIP_BY_ID[id],l=shipLevel(id);if(l>=n.max||!shipUnlocked(n))return;const cost=shipCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.shipLevels[id]=l+1;(save.shipSpent[id]??=[]).push(cost);if(id==='s16'){sanitizeLoadout();if(!equipped('fuelDump')){const free=save.abilityLoadout.indexOf(null);if(free>=0)save.abilityLoadout[free]='fuelDump'}}persist();updateMenu();if(id==='s16'){renderAbilities();renderGameAbilityBar()}}
 
 let treePanX=20,treePanY=0,treeZoom=.75;
 function applyTreeView(){const w=$('shipworld');if(w)w.style.transform=`translate(${treePanX}px,${treePanY}px) scale(${treeZoom})`}
@@ -1918,6 +1927,11 @@ function finish(success,title){
 let runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};
 function notify(s){$('toast').textContent=s;$('toast').style.display='block';toastTime=2.5}
 let taskDistanceBuffer=0;
+function activateFuelDump(){
+ if(!active||phase!=='collect'||shipLevel('s16')<1||!equipped('fuelDump')||window.geminiGhost?.())return;
+ enterReturnPhase('FUEL DUMP — RETURN JOURNEY BEGINS!');
+ audioSound('ability');updateGameAbilityCooldowns();
+}
 function enterReturnPhase(message){
  if(!active||phase!=='collect')return;
  phase='return';
