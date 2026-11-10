@@ -2205,5 +2205,52 @@ if(equipped('b09')||isClass('hacker')){
  });
 }
 if(phase==='return'){let dx=sx-W/2,dy=sy-H/2,dist=Math.hypot(dx,dy);if(dist>110){const a=Math.atan2(dy,dx),px=W/2+Math.cos(a)*Math.min(W,H)*.35,py=H/2+Math.sin(a)*Math.min(W,H)*.35;ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.fillStyle='#6df7ed';ctx.shadowColor='#6df7ed';ctx.shadowBlur=15;ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-10,-10);ctx.lineTo(-6,0);ctx.lineTo(-10,10);ctx.fill();ctx.restore()}}}
-function loop(t){if(!active)return;const dt=Math.min((t-last)/1000,.04);last=t;if(fullMapUntil>0&&t>=fullMapUntil)fullMapUntil=0;if(fullMapUntil<=0)update(dt);if(!active)return;if(fullMapUntil<=0)radarPing(dt);draw();drawRadar();if(fullMapUntil>0)drawFullMap(t);if(altarShakeTime>0){$('canvas').style.transform='translate('+((Math.random()-.5)*18*altarShakeTime/.85)+'px,'+((Math.random()-.5)*18*altarShakeTime/.85)+'px)'}else $('canvas').style.transform='';updateNebulaAtmosphere();requestAnimationFrame(loop)}
+// Keep a lightweight diagnostic when a frame stalls or a runtime error would
+// otherwise silently stop requestAnimationFrame. Read via deepBlueDiagnostics().
+let lastEngineError='',lastEngineSpikeAt=0;
+function engineDiagnostic(reason,elapsed,error){
+ const report={reason,elapsedMs:Math.round(elapsed),error:error?.stack||error?.message||'',
+  distance:Math.round(Math.hypot(player.x,player.y)),
+  speed:Math.round(Math.hypot(player.vx,player.vy)),phase,
+  rocks:rocks.length,crates:crates.length,formations:specialFormations.length,
+  formationRocks:goldenRocks.length,wrecks:wrecks.length,stations:abandonedStations.length,
+  time:new Date().toISOString()};
+ try{localStorage.setItem('deepblue-last-'+reason,JSON.stringify(report))}catch(_){}
+ return report;
+}
+window.deepBlueDiagnostics=()=>({
+ error:JSON.parse(localStorage.getItem('deepblue-last-error')||'null'),
+ slowFrame:JSON.parse(localStorage.getItem('deepblue-last-slow-frame')||'null')
+});
+function loop(t){
+ if(!active)return;
+ const start=performance.now();let failed=false;
+ try{
+  const dt=Math.min((t-last)/1000,.04);last=t;
+  if(fullMapUntil>0&&t>=fullMapUntil)fullMapUntil=0;
+  if(fullMapUntil<=0)update(dt);
+  if(!active)return;
+  if(fullMapUntil<=0)radarPing(dt);
+  draw();drawRadar();
+  if(fullMapUntil>0)drawFullMap(t);
+  if(altarShakeTime>0)$('canvas').style.transform='translate('+((Math.random()-.5)*18*altarShakeTime/.85)+'px,'+((Math.random()-.5)*18*altarShakeTime/.85)+'px)';
+  else $('canvas').style.transform='';
+  updateNebulaAtmosphere();
+ }catch(error){
+  failed=true;
+  const report=engineDiagnostic('error',performance.now()-start,error);
+  if(report.error!==lastEngineError){
+   lastEngineError=report.error;
+   console.error('Deep Blue engine error',report);
+   notify('ENGINE ERROR — '+(error?.message||'CHECK CONSOLE'));
+  }
+ }finally{
+  const elapsed=performance.now()-start;
+  if(!failed&&elapsed>250&&performance.now()-lastEngineSpikeAt>5000){
+   lastEngineSpikeAt=performance.now();
+   console.warn('Deep Blue slow frame',engineDiagnostic('slow-frame',elapsed));
+  }
+  if(active)requestAnimationFrame(loop);
+ }
+}
 </script><script src="wrath.js"></script><script src="draco.js"></script><script src="ursa.js"></script><script src="gemini.js"></script><script src="prestige-tree.js"></script><div id="copyright-notice" style="position:fixed;bottom:5px;right:10px;z-index:9999;pointer-events:none;color:rgba(205,225,235,.55);font:11px Arial,sans-serif;text-shadow:0 1px 2px #00131f">© 2026 Deep Blue. All rights reserved.</div></body></html>
