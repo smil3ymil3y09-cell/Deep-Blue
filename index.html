@@ -1582,9 +1582,9 @@ function generateSpecialFormations(){
  }}
 }
 // A formation is cleared only when every valuable crate originally placed inside it has been collected.
-function formationCleared(f){return f.crates.every(c=>!crates.includes(c))}
-function trackerReadout(type){
- const candidates=specialFormations.filter(f=>f.type===type&&!formationCleared(f))
+function formationCleared(f,activeCrates){return f.crates.every(c=>!(activeCrates?activeCrates.has(c):crates.includes(c)))}
+function trackerReadout(type,activeCrates){
+ const candidates=specialFormations.filter(f=>f.type===type&&!formationCleared(f,activeCrates))
   .map(f=>({f,d:Math.hypot(f.x-player.x,f.y-player.y)})).sort((a,b)=>a.d-b.d);
  if(!candidates.length)return 'CLEARED / NONE';
  // The formation positions may be equally distant at the station.
@@ -1602,7 +1602,8 @@ function updateTrackerHUD(){
  const el=$('trackerHUD');
  if(equippedTrackerSlot()<0&&!equipped('b09')&&!isClass('hacker')){el.style.display='none';return}
  el.style.display='block';
- el.innerHTML=equippedTrackerSlot()<0?'':'<strong>◎ ASTEROID TRACKER</strong><div style="color:#ffd27c">GOLDEN · '+trackerReadout('golden')+'</div><div style="color:#c9a5ff">OBSIDIAN · '+trackerReadout('obsidian')+'</div><div style="color:#ff987b">MAGMA · '+trackerReadout('magma')+'</div>';if(equipped('b09')||isClass('hacker')){const targets=nearestOutposts();el.innerHTML+='<strong>▣ OUTPOST RADAR · '+disabledOutpostKeys.size+' DEACTIVATED</strong>'+(targets.length?targets.map((p,i)=>'<div style="color:#ff838e">#'+(i+1)+' · ACTIVE · '+Math.round(p.d).toLocaleString('en-GB')+' units · '+Math.round(Math.atan2(p.o.y-player.y,p.o.x-player.x)*180/Math.PI)+'°</div>').join(''):'<div style="color:#9ce9bd">NO ACTIVE OUTPOSTS IN RADAR RANGE</div>')}
+ const activeCrates=equippedTrackerSlot()>=0?new Set(crates):null;
+ el.innerHTML=equippedTrackerSlot()<0?'':'<strong>◎ ASTEROID TRACKER</strong><div style="color:#ffd27c">GOLDEN · '+trackerReadout('golden',activeCrates)+'</div><div style="color:#c9a5ff">OBSIDIAN · '+trackerReadout('obsidian',activeCrates)+'</div><div style="color:#ff987b">MAGMA · '+trackerReadout('magma',activeCrates)+'</div>';if(equipped('b09')||isClass('hacker')){const targets=nearestOutposts();el.innerHTML+='<strong>▣ OUTPOST RADAR · '+disabledOutpostKeys.size+' DEACTIVATED</strong>'+(targets.length?targets.map((p,i)=>'<div style="color:#ff838e">#'+(i+1)+' · ACTIVE · '+Math.round(p.d).toLocaleString('en-GB')+' units · '+Math.round(Math.atan2(p.o.y-player.y,p.o.x-player.x)*180/Math.PI)+'°</div>').join(''):'<div style="color:#9ce9bd">NO ACTIVE OUTPOSTS IN RADAR RANGE</div>')}
 }
 function bronzeChanceAtLevelOne(){return .12/20}
 function bronzeChance(){return bronzeChanceAtLevelOne()*luckLevel('l14')}
@@ -1615,7 +1616,10 @@ function collectCrate(c){if(window.geminiCanCollect?.()===false)return;window.ge
  window.ursaCrateCollected?.();if(c.rare)notify(c.kind.toUpperCase()+' CRATE +'+goldText(value)+' GOLD');
 }
 function checkFormationCompletions(){
- for(const f of specialFormations){if(f.bonusCounted||!formationCleared(f))continue;
+ // Snapshot once per frame instead of searching the entire crate array for
+ // every crate in every discovered formation (quadratic at high speeds).
+ const activeCrates=new Set(crates);
+ for(const f of specialFormations){if(f.bonusCounted||!formationCleared(f,activeCrates))continue;
   f.bonusCounted=true;formationCounts[f.type]=(formationCounts[f.type]||0)+1;taskEvent(f.type+'Clear');
   if(bonusLevel('b20')>0){const base=f.crates.reduce((sum,c)=>sum+(c.value||0),0);haul+=base*.02*bonusLevel('b20')}
   window.dracoFormationCleared?.(f);
@@ -2136,10 +2140,11 @@ ctx.restore(); // Return to unscaled screen coordinates before drawing direction
 // Each equipped tracker target has its own world-space direction marker.
 // The nearest UNCLEARED formation of each type is selected independently.
 if(equippedTrackerSlot()>=0){
+ const activeCrates=new Set(crates);
  const styles=[['golden','#ffdb72','GOLDEN'],['obsidian','#c49cff','OBSIDIAN'],['magma','#ff8664','MAGMA']];
  for(let index=0;index<styles.length;index++){
   const [type,color,label]=styles[index];
-  const targets=specialFormations.filter(f=>f.type===type&&!formationCleared(f))
+  const targets=specialFormations.filter(f=>f.type===type&&!formationCleared(f,activeCrates))
    .map(f=>({f,d:Math.hypot(f.x-player.x,f.y-player.y)})).sort((a,b)=>a.d-b.d);
   if(!targets.length)continue;
   const target=targets[0],dist=target.d;
