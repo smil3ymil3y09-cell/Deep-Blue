@@ -1997,7 +1997,7 @@ const CHALLENGES=[
 ];
 let flightConfig={mode:'challenge',flags:new Set(),seed:'',asteroids:1,outposts:1,weather:'normal',wrecks:1,stations:1};
 let flightStarted=false;
-const flightHas=id=>flightConfig.mode==='challenge'&&flightConfig.flags.has(id);
+const flightHas=id=>(active||flightStarted)&&flightConfig.mode==='challenge'&&flightConfig.flags.has(id);
 const flightMultiplier=()=>flightConfig.mode==='seed'?0:CHALLENGES.reduce((m,c)=>m*(flightHas(c[0])?c[2]:1),1);
 function flightSeedNumber(v){let h=2166136261;for(const ch of String(v)){h=Math.imul(h^ch.charCodeAt(0),16777619)}return h>>>0}
 function openChallengeBoard(){
@@ -2141,7 +2141,7 @@ function finish(success,title){
   multiply('CHALLENGE BONUS',flightMultiplier());
   showGoldTally(steps,banked,save.gold);
  }else{tallyTimers.forEach(clearTimeout);const tally=$('goldTally');if(tally)tally.style.display='none';$('resulttext').style.display='';}
- window.dracoEnd?.();$('toast').style.display='none';$('result').style.display='flex';updateMenu();
+ window.dracoEnd?.();flightStarted=false;$('toast').style.display='none';$('result').style.display='flex';updateMenu();
 }
 let runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};
 function notify(s){$('toast').textContent=s;$('toast').style.display='block';toastTime=2.5}
