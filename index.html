@@ -385,7 +385,7 @@ function sanitizeLoadout(){
   used.add(a);return a;
  });
 }
-function equipped(a){return save.abilityLoadout.includes(a)}
+function equipped(a){return !(active&&preflightHas('noAbilities'))&&save.abilityLoadout.includes(a)}
 function equippedBrakeSlot(){return save.abilityLoadout?save.abilityLoadout.indexOf('brake'):-1}
 function equippedTrackerSlot(){return save.abilityLoadout?save.abilityLoadout.indexOf('tracker'):-1}
 const DEFAULT_KEYBINDS={dodge:'Space',up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',...Object.fromEntries(Array.from({length:10},(_,i)=>['slot'+i,i===9?'Digit0':'Digit'+(i+1)]))};
@@ -500,7 +500,7 @@ const LUCK_RESEARCH=[
 ];
 const PROFIT_RESEARCH=[{"id":"p01","name":"Crate Appreciation","max":100,"base":1,"r":2,"desc":"+1 gold per ordinary crate per level.","x":2160,"y":1790,"req":[]},{"id":"p02","name":"Salvage Multiplier","max":100,"base":1,"r":2,"desc":"+1% to the final banked haul per level.","x":2380,"y":1650,"req":[["p01",1]]},{"id":"p03","name":"Distance Dividend","max":50,"base":2,"r":2,"desc":"+2% to the distance payout multiplier per level.","x":2610,"y":1500,"req":[["p02",1]]},{"id":"p04","name":"Task Bar","max":1,"base":3,"r":2,"desc":"Unlock the Task Bar interface. Task mechanics are coming later.","x":2370,"y":1930,"req":[["p01",1]]},{"id":"p05","name":"Golden Profits","max":100,"base":1,"r":2,"desc":"+2 base gold per golden crate per level.","x":2600,"y":1840,"req":[["p01",1]]},{"id":"p06","name":"Obsidian Profits","max":100,"base":1,"r":2,"desc":"+5 base gold per obsidian crate per level.","x":2840,"y":1750,"req":[["p05",1]]},{"id":"p07","name":"Magma Profits","max":100,"base":1,"r":2,"desc":"+10 base gold per magma crate per level.","x":3070,"y":1650,"req":[["p06",1]]},{"id":"p08","name":"Bronze Royalties","max":100,"base":2,"r":2,"desc":"+1% bronze asteroid income per level.","x":2840,"y":1380,"req":[["p03",1]]},{"id":"p09","name":"Cargo Interest","max":50,"base":2,"r":2,"desc":"+1% banked haul per 10 crates collected per level, capped at +50%.","x":2590,"y":2140,"req":[["p04",1]]},{"id":"p10","name":"Collection Dividend","max":100,"base":1,"r":2,"desc":"+1 gold per level for every fifth crate collected.","x":2820,"y":2360,"req":[["p09",1]]},{"id":"p11","name":"Golden Multiplication","max":25,"base":2,"r":2,"desc":"+0.1× golden crate value per level.","x":3070,"y":2020,"req":[["p05",1]]},{"id":"p12","name":"Obsidian Multiplication","max":25,"base":2,"r":2,"desc":"+0.1× obsidian crate value per level.","x":3310,"y":1900,"req":[["p06",1]]},{"id":"p13","name":"Magma Multiplication","max":25,"base":2,"r":2,"desc":"+0.1× magma crate value per level.","x":3550,"y":1790,"req":[["p07",1]]},{"id":"p14","name":"Safe Return Bonus","max":50,"base":2,"r":2,"desc":"+2% final payout per remaining hull point per level.","x":3090,"y":1320,"req":[["p08",1]]},{"id":"p15","name":"Profit Singularity","max":100,"base":5,"r":2,"desc":"+0.05× final banking multiplier per level.","x":3450,"y":2360,"req":[["p10",1],["p14",1]]}];
 const PROFIT_BY_ID=Object.fromEntries(PROFIT_RESEARCH.map(n=>[n.id,n]));
-const profitLevel=id=>Math.max(0,Math.min(PROFIT_BY_ID[id].max,Number(save.profitLevels?.[id])||0));
+const profitLevel=id=>active&&preflightHas('noProfits')?0:Math.max(0,Math.min(PROFIT_BY_ID[id].max,Number(save.profitLevels?.[id])||0));
 const profitCost=(n,l)=>Math.ceil(n.base*Math.pow(2,l));
 const profitUnlocked=n=>n.req.every(([id,level])=>profitLevel(id)>=level);
 function purchaseProfit(id){const n=PROFIT_BY_ID[id],l=profitLevel(id);if(l>=n.max||!profitUnlocked(n))return;const cost=profitCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.profitLevels[id]=l+1;(save.profitSpent[id]??=[]).push(cost);persist();updateMenu();renderTaskBar()}
@@ -539,8 +539,8 @@ const TASK_SLOTS=['easy','easy','easy','medium','medium','hard'],TASK_REWARDS={e
 function taskPick(tier,exclude){const a=TASK_POOL.filter(t=>t.tier===tier&&!exclude.has(t.id));return (a.length?a:TASK_POOL.filter(t=>t.tier===tier))[Math.floor(Math.random()*(a.length||TASK_POOL.filter(t=>t.tier===tier).length))]}
 function taskInit(){save.scrap=Math.max(0,Number(save.scrap)||0);const previous=Array.isArray(save.tasks)?save.tasks:[],used=new Set();save.tasks=TASK_SLOTS.map((tier,i)=>{const old=previous[i],t=old&&TASK_POOL.find(t=>t.id===old.id&&t.tier===tier&&!used.has(t.id))||taskPick(tier,used);used.add(t.id);return{id:t.id,progress:old&&old.id===t.id?Math.max(0,Number(old.progress)||0):0}})}
 function taskComplete(i,t){save.scrap+=TASK_REWARDS[t.tier];const el=$('taskCompleteFeed');if(el){const n=document.createElement('div');n.className='tasknotice';n.textContent='✓ TASK COMPLETE · '+t.name+' · +'+TASK_REWARDS[t.tier]+' SCRAP';el.prepend(n);setTimeout(()=>n.remove(),4500)}const used=new Set(save.tasks.map(s=>s.id));save.tasks[i]={id:taskPick(t.tier,used).id,progress:0}}
-function taskEvent(metric,value=1){if(!Array.isArray(save.tasks))return;let changed=false;for(let i=0;i<save.tasks.length;i++){const slot=save.tasks[i],t=TASK_POOL.find(t=>t.id===slot.id);if(!t||t.mode==='run'||t.metric!==metric)continue;slot.progress+=value;changed=true;if(slot.progress>=t.target)taskComplete(i,t)}if(changed){persist();if(!$('taskBarPanel').hidden)renderTaskBar()}}
-function taskRunEvent(stats){for(let i=0;i<save.tasks.length;i++){const t=TASK_POOL.find(t=>t.id===save.tasks[i].id);if(t&&t.mode==='run'&&(stats[t.metric]||0)>=t.target)taskComplete(i,t)}persist();if(!$('taskBarPanel').hidden)renderTaskBar()}
+function taskEvent(metric,value=1){if(active&&preflightRun&&preflightMode==='seed')return;if(!Array.isArray(save.tasks))return;let changed=false;for(let i=0;i<save.tasks.length;i++){const slot=save.tasks[i],t=TASK_POOL.find(t=>t.id===slot.id);if(!t||t.mode==='run'||t.metric!==metric)continue;slot.progress+=value;changed=true;if(slot.progress>=t.target)taskComplete(i,t)}if(changed){persist();if(!$('taskBarPanel').hidden)renderTaskBar()}}
+function taskRunEvent(stats){if(active&&preflightRun&&preflightMode==='seed')return;for(let i=0;i<save.tasks.length;i++){const t=TASK_POOL.find(t=>t.id===save.tasks[i].id);if(t&&t.mode==='run'&&(stats[t.metric]||0)>=t.target)taskComplete(i,t)}persist();if(!$('taskBarPanel').hidden)renderTaskBar()}
 function taskDescription(t){
  const n=t.target.toLocaleString('en-GB');
  const descriptions={
@@ -732,13 +732,13 @@ const BONUS_RESEARCH=[
 {id:'b25',name:'Second Wind',max:5,base:1200,r:1.28,desc:'Automatically restore 1 hull on reaching 1 remaining hull; +1 activation per level per expedition.',x:1320,y:4530,req:[['b15',1],['b21',1],['b24',1]]}
 ];
 const BONUS_BY_ID=Object.fromEntries(BONUS_RESEARCH.map(n=>[n.id,n]));
-const bonusLevel=id=>Math.max(0,Math.min(BONUS_BY_ID[id].max,Number(save.bonusLevels[id])||0));
+const bonusLevel=id=>active&&preflightHas('noBonuses')?0:Math.max(0,Math.min(BONUS_BY_ID[id].max,Number(save.bonusLevels[id])||0));
 function bonusCost(n,l){return Math.ceil(n.base*Math.pow(n.r,l)-1e-9)}
 function bonusUnlocked(n){return n.req.every(([id,l])=>bonusLevel(id)>=l)}
 function purchaseBonus(id){const n=BONUS_BY_ID[id],l=bonusLevel(id);if(l>=n.max||!bonusUnlocked(n))return;const cost=bonusCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.bonusLevels[id]=l+1;(save.bonusSpent[id]??=[]).push(cost);persist();updateMenu();renderAbilities()}
 
 const LUCK_BY_ID=Object.fromEntries(LUCK_RESEARCH.map(n=>[n.id,n]));
-const luckLevel=id=>Math.max(0,Math.min(LUCK_BY_ID[id].max,Number(save.luckLevels[id])||0));
+const luckLevel=id=>active&&preflightHas('noLuck')?0:Math.max(0,Math.min(LUCK_BY_ID[id].max,Number(save.luckLevels[id])||0));
 function luckCost(n,level){return Math.ceil(n.base*Math.pow(n.r,level)-1e-9)}
 function luckUnlocked(n){return n.req.every(([id,l])=>luckLevel(id)>=l)}
 function purchaseLuck(id){const n=LUCK_BY_ID[id],l=luckLevel(id);if(l>=n.max||!luckUnlocked(n))return;const cost=luckCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.luckLevels[id]=l+1;(save.luckSpent[id]??=[]).push(cost);persist();updateMenu()}
@@ -761,7 +761,7 @@ const radarInterval=()=>5-.45*radarLevel('r03');
 const radarDetection=()=>radarLevel('r01')?1+radarLevel('r04'):0;
 const SHIP_BY_ID=Object.fromEntries(SHIP_RESEARCH.map(n=>[n.id,n]));
 const DRILL_DIST=[0,60,80,110,150,200,270,350,450,600,800,1050,1350,1700,2100,2550,3050,3600,4250,4700,5000];
-const shipLevel=id=>Math.max(0,Math.min(SHIP_BY_ID[id].max,Number(save.shipLevels[id])||0));
+const shipLevel=id=>active&&preflightHas('noShip')?0:Math.max(0,Math.min(SHIP_BY_ID[id].max,Number(save.shipLevels[id])||0));
 function shipCost(n,level){return n.prices?n.prices[level]:Math.ceil(n.base*Math.pow(n.r,level)-1e-9)}
 function shipUnlocked(n){return n.req.every(([id,l])=>shipLevel(id)>=l)}
 let selectedShip='core';
@@ -873,7 +873,7 @@ $('treeZoomIn').onclick=()=>{treeZoom=Math.min(1.6,treeZoom*1.2);applyTreeView()
 addEventListener('resize',()=>{if($('menu').style.display!=='none')applyTreeView()});
 centerTree();migratePrestigeAbilitySlots();updateMenu();renderAbilities();
 
-function prestigeGoldMultiplier(){const level=Math.max(0,Number(save.prestigeLevel)||0);return level>=40?81:level>=20?27:level>=10?9:level>=1?3:1}function hasPrestigeCapstone(branch){return (Number(save.prestigeLevel)||0)>=20&&save.prestigeNodes?.['pr-'+branch+'-capstone']===true}function isClass(id){return !!window.geminiIsClass?.(id)||save.selectedClass===id}function maxHull(){return (5+shipLevel('s01')+shipLevel('s09'))*(isClass('brute')?2:1)}function shipScale(){return [1,.8,.6,.5][shipLevel('s15')]*(isClass('brute')?.8:1)}
+function prestigeGoldMultiplier(){const level=Math.max(0,Number(save.prestigeLevel)||0);return level>=40?81:level>=20?27:level>=10?9:level>=1?3:1}function hasPrestigeCapstone(branch){return (Number(save.prestigeLevel)||0)>=20&&save.prestigeNodes?.['pr-'+branch+'-capstone']===true}function isClass(id){return !!window.geminiIsClass?.(id)||save.selectedClass===id}function maxHull(){return Math.max(1,Math.ceil((5+shipLevel('s01')+shipLevel('s09'))*(isClass('brute')?2:1)*(preflightHas('fragile')?.5:1)))}function shipScale(){return [1,.8,.6,.5][shipLevel('s15')]*(isClass('brute')?.8:1)*(preflightHas('large')?1.5:1)}
 const rand=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));let drillUsed=false,drillActive=false,drillTravel=0,drillPreviousRock=false,shields=0;let brakeTimer=0,halTimer=0,dodgeCooldownTimer=0,dodgeIFrames=0,dodgeBurstTimer=0,dodgeDirX=0,dodgeDirY=-1;let flightWASD=false,pressedKeys=new Set(),dodgeCharges=1,dodgeChargeClock=0,dodgeSuccessful=false,dodgeBulletAwarded=false,slipstreamTimer=0,secondWindUsed=0,formationCounts={golden:0,obsidian:0,magma:0},outpostChain=0,nearMissedBullets=new WeakSet();let goldenCache=null,goldenRocks=[],specialFormations=[],bronzeRocks=[],outposts=[],outpostBullets=[],streakCount=0,dedicationTriggered=false,dedicationClean=false,maxRunDistance=0,active=false,phase='collect',remaining=30,haul=0,profitCratesCollected=0,hits=0,invuln=0,player={x:0,y:0,vx:0,vy:0},rocks=[],crates=[],particles=[],mouse={x:W/2,y:H/2-140},last=0,spawnClock=0,rockClock=0,rockChunks=new Set(),toastTime=0;
 const isMobile=matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 /* World camera only: a mobile screen displays twice the world width and height.
@@ -1003,8 +1003,9 @@ function wreckMake(x,y,seed){
  return{x,y,seed,orientation,breach,walls:[...walls].map(s=>s.split(',').map(Number)),gold,scrap,cores,debris,elapsed:0,armed:false,countdown:WRECK_ESCAPE,destroyed:false,damageClock:0,announced:false};
 }
 function wreckGenerateRing(ring){
+ if(preflightHas('noStations')||(preflightRun&&preflightMode==='seed'&&$('pfWrecks').value==='0'))return;
  if(wreckRings.has(ring))return;wreckRings.add(ring);
- const count=ring===0?5:10,inner=ring===0?2600:10000+(ring-1)*5000,outer=10000+ring*5000;
+ const count=Math.round((ring===0?5:10)*(preflightRun&&preflightMode==='seed'?Number($('pfWrecks').value):1)),inner=ring===0?2600:10000+(ring-1)*5000,outer=10000+ring*5000;
  const rng=wreckRandom((expeditionSeed^Math.imul(ring+1,0x9e3779b9))>>>0),offset=rng()*Math.PI*2;
  for(let i=0;i<count;i++){const angle=offset+(i+(rng()-.5)*.5)*Math.PI*2/count;
   const distance=Math.sqrt(inner*inner+rng()*(outer*outer-inner*inner));
@@ -1224,9 +1225,10 @@ function stationSolidNear(s,x,y,r=16){
  }return false
 }
 function stationGenerateBand(band){
+ if(preflightHas('noStations')||(preflightRun&&preflightMode==='seed'&&$('pfStations').value==='0'))return;
  if(stationBands.has(band))return;stationBands.add(band);
  const rng=wreckRandom((expeditionSeed^Math.imul(band+19,0x6c8e9cf5))>>>0);
- const count=band===0?1:2,inner=band===0?2700:5000+(band-1)*10000,outer=band===0?5000:5000+band*10000;
+ const count=Math.round((band===0?1:2)*(preflightRun&&preflightMode==='seed'?Number($('pfStations').value):1)),inner=band===0?2700:5000+(band-1)*10000,outer=band===0?5000:5000+band*10000;
  for(let i=0;i<count;i++){
   let candidate=null;
   for(let attempt=0;attempt<35;attempt++){
@@ -1490,6 +1492,11 @@ function updateAltar(dt){
  if(altarMessageTime>0)altarMessage.style.opacity=String(Math.min(1,(4.1-altarMessageTime)/.55,altarMessageTime/.55));
 }
 function generateBiomeMap(){
+ if(preflightRun&&preflightMode==='seed'&&$('pfWeather').value!=='normal'){
+ const kind=Number($('pfWeather').value),grid=new Int8Array(BIOME_SIDE*BIOME_SIDE).fill(-1);
+ for(let y=0;y<BIOME_SIDE;y++)for(let x=0;x<BIOME_SIDE;x++){const wx=(x+.5)*BIOME_STEP-BIOME_LIMIT,wy=(y+.5)*BIOME_STEP-BIOME_LIMIT,d=Math.hypot(wx,wy);if(d<BIOME_LIMIT)grid[y*BIOME_SIDE+x]=d<BIOME_SAFE?0:kind}
+ biomeGrid=grid;biomeTargets=[0,0,0,0];biomeTargets[kind]=100;biomeCoverage=biomeTargets.slice();biomeDominants=[kind,kind,kind];return;
+ }
  const rng=wreckRandom((expeditionSeed^0xb10be777)>>>0);
  // Rare 1% mono-biome expedition; preserve the 10,000-unit safe core.
  if(rng()<.01){
@@ -1741,7 +1748,8 @@ function outpostCandidate(cx,cy){
  const key=cx+','+cy;
  if(outpostCells.has(key))return outpostCells.get(key);
  const rnd=chunkRandom(cx+3107,cy-8241);
- const exists=rnd()<.82;
+ const outpostFactor=preflightRun&&preflightMode==='seed'?Number($('pfOutposts').value):(preflightHas('outbreak')?1.2:1);
+ const exists=rnd()<Math.min(.99,.82*outpostFactor);
  const obj=exists?{x:(cx+.20+rnd()*.60)*OUTPOST_CELL,y:(cy+.20+rnd()*.60)*OUTPOST_CELL,priority:rnd(),key,active:true,fireClock:0,shotsFired:0}:null;
  outpostCells.set(key,obj);return obj;
 }
@@ -1993,6 +2001,7 @@ const PREFLIGHT_OPTIONS=[
 let preflightMode='challenge',preflightSelected=new Set(),preflightRun=false;
 const preflightHas=id=>preflightRun&&preflightMode==='challenge'&&preflightSelected.has(id);
 const preflightMultiplier=()=>preflightMode==='seed'?0:PREFLIGHT_OPTIONS.reduce((m,o)=>m*(preflightSelected.has(o[0])?o[2]:1),1);
+function preflightSeedHash(value){let h=2166136261;for(const c of String(value))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0}
 function preflightOpen(){
  $('menu').style.display='none';
  $('preflight').classList.add('visible');
@@ -2025,7 +2034,7 @@ function preflightInit(){
   $('preflight').classList.remove('visible');preflightRun=true;begin();
  };
 }
-function begin(){window.geminiStart?.();radarClock=0;radarContacts=[];fullMapUntil=0;fullMapUsed=false;fullMapCanvas=null;if(isMobile&&screen.orientation&&screen.orientation.lock){Promise.resolve().then(()=>screen.orientation.lock('landscape')).catch(()=>{});}abandonedStations=[];stationBands=new Set();wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=freshExpeditionSeed();generateBiomeMap();altar=null;active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=window.ursaInitialTime?.((30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1))??(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();window.dracoStart?.();window.ursaStart?.();generateSpecialFormations();window.dracoFormationsReady?.();generateAltar();generateNebulaPatchLocations();generateStarryLocations();wreckGenerateRing(0);stationGenerateBand(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);spawnStartingResources();$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';window.prestigeCapstoneRunStart?.();window.wrathStart?.();last=performance.now();requestAnimationFrame(loop)}
+function begin(){window.geminiStart?.();radarClock=0;radarContacts=[];fullMapUntil=0;fullMapUsed=false;fullMapCanvas=null;if(isMobile&&screen.orientation&&screen.orientation.lock){Promise.resolve().then(()=>screen.orientation.lock('landscape')).catch(()=>{});}abandonedStations=[];stationBands=new Set();wrecks=[];wreckRings=new Set();audioInit();audioStartAmbience();taskDistanceBuffer=0;runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};renderGameAbilityBar();expeditionSeed=preflightMode==='seed'?preflightSeedHash($('pfCode').value):freshExpeditionSeed();generateBiomeMap();altar=null;active=true;brakeTimer=0;halTimer=0;dodgeCooldownTimer=0;dodgeIFrames=0;dodgeBurstTimer=0;phase='collect';remaining=(window.ursaInitialTime?.((30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1))??(30+save.fuel*.25+shipLevel('s04')*5)*(isClass('adventurer')?2:1))*(preflightHas('shortFuel')?.75:1);haul=0;profitCratesCollected=0;hits=0;invuln=0;maxRunDistance=0;dedicationTriggered=false;dedicationClean=false;drillUsed=false;drillActive=false;drillTravel=0;shields=shipLevel('s13')+(isClass('brute')?5:0);player={x:0,y:0,vx:0,vy:0};rocks=[];rockChunks=new Set();crates=[];bronzeRocks=[];outposts=[];outpostBullets=[];disabledOutpostKeys.clear();outpostCells.clear();streakCount=0;formationCounts={golden:0,obsidian:0,magma:0};outpostChain=0;secondWindUsed=0;dodgeCharges=1+(equipped('b13')?bonusLevel('b13'):0);dodgeChargeClock=0;dodgeSuccessful=false;slipstreamTimer=0;flightWASD=equipped('b04');pressedKeys.clear();window.dracoStart?.();window.ursaStart?.();generateSpecialFormations();window.dracoFormationsReady?.();generateAltar();generateNebulaPatchLocations();generateStarryLocations();wreckGenerateRing(0);stationGenerateBand(0);particles=[];spawnClock=0;rockClock=0;mouse={x:W/2,y:H/2-140};joyStop({pointerId:joy.id});maintainRockField(player.x,player.y);spawnStartingResources();$('menu').style.display='none';$('result').style.display='none';$('game').style.display='block';window.prestigeCapstoneRunStart?.();window.wrathStart?.();last=performance.now();requestAnimationFrame(loop)}
 function activateDodge(){
  if(!active||window.geminiGhost?.()||window.geminiLockMovement?.()||dodgeCharges<=0)return;if(wreckDodgeBlocked()){notify('DODGE DISABLED INSIDE DERELICT');return}
  const dx=flightWASD&&!isMobile?(pressedKeys.has('KeyD')-pressedKeys.has('KeyA')):isMobile?joy.x:mouse.x-W/2,dy=flightWASD&&!isMobile?(pressedKeys.has('KeyS')-pressedKeys.has('KeyW')):isMobile?joy.y:mouse.y-H/2;
@@ -2107,11 +2116,11 @@ function finish(success,title){
  const formationMultiplier=Math.pow(1.5,(bonusLevel('b22')?formationCounts.golden:0)+(bonusLevel('b23')?formationCounts.obsidian:0))*(bonusLevel('b24')&&formationCounts.magma>0?2:1);
  const dedicationGold=success&&dedicationTriggered&&dedicationClean?5:0;
  const cargoInterest=1+Math.min(.5,Math.floor(profitCratesCollected/10)*.01*profitLevel('p09'));const profitMultiplier=(1+.01*profitLevel('p02'))*cargoInterest*(1+.02*profitLevel('p14')*Math.max(0,maxHull()-hits))*(1+.05*profitLevel('p15'));const dracoMultiplier=window.dracoFinalMultiplier?.(success)??1;
- const adjustedHaul=(haul*distanceMultiplier*hullMultiplier*formationMultiplier+dedicationGold)*profitMultiplier*prestigeGoldMultiplier();
+ const adjustedHaul=(haul*distanceMultiplier*hullMultiplier*formationMultiplier+dedicationGold)*profitMultiplier*prestigeGoldMultiplier()*(preflightRun?preflightMultiplier():1);
  const banked=success?floorGold(adjustedHaul*dracoMultiplier):0;
- const recovered=!success?floorGold(Math.max(0,adjustedHaul)*(window.dracoRecoveryRate?.()||0)):0;
+ const recovered=!success&&preflightMode!=='seed'?floorGold(Math.max(0,adjustedHaul)*(window.dracoRecoveryRate?.()||0)):0;
  if(!success&&recovered>0){save.gold=floorGold(save.gold+recovered);taskEvent('banked',recovered);persist()}
- if(success){if(taskDistanceBuffer>0){taskEvent('distance',taskDistanceBuffer);taskDistanceBuffer=0}save.gold=floorGold(save.gold+banked);taskEvent('returns');taskEvent('banked',banked);taskRunEvent({returnDistance:maxRunDistance,flawlessDistance:runTaskStats.damage===0?maxRunDistance:0,returnCrates:runTaskStats.crates,returnGold:banked,returnOutposts:runTaskStats.outposts,allFormations:formationCounts.golden>0&&formationCounts.obsidian>0&&formationCounts.magma>0?1:0,oneHullDistance:maxHull()-hits===1?maxRunDistance:0,flawlessMagmaDistance:runTaskStats.damage===0&&formationCounts.magma>0?maxRunDistance:0});persist()}
+ if(success&&preflightMode!=='seed'){if(taskDistanceBuffer>0){taskEvent('distance',taskDistanceBuffer);taskDistanceBuffer=0}save.gold=floorGold(save.gold+banked);taskEvent('returns');taskEvent('banked',banked);taskRunEvent({returnDistance:maxRunDistance,flawlessDistance:runTaskStats.damage===0?maxRunDistance:0,returnCrates:runTaskStats.crates,returnGold:banked,returnOutposts:runTaskStats.outposts,allFormations:formationCounts.golden>0&&formationCounts.obsidian>0&&formationCounts.magma>0?1:0,oneHullDistance:maxHull()-hits===1?maxRunDistance:0,flawlessMagmaDistance:runTaskStats.damage===0&&formationCounts.magma>0?maxRunDistance:0});persist()}
  $('resulttitle').textContent=title;
  $('resulttext').textContent=success
   ?`Collected ${haul} gold × ${distanceMultiplier.toFixed(3)} distance${(save.hullbonus||equipped('b05'))?` × ${hullMultiplier.toFixed(2)} hull`:''} × ${formationMultiplier.toFixed(3)} formation × ${profitMultiplier.toFixed(3)} PROFITS × ${prestigeGoldMultiplier()} PRESTIGE${dracoMultiplier!==1?' ×'+dracoMultiplier+' DRACO ABILITIES':''} ${dedicationGold?' + 5 Dedicating Myself':''} = ${goldText(banked)} banked gold. Furthest distance: ${Math.floor(maxRunDistance)}. Total balance: ${goldText(save.gold)} gold.`
@@ -2127,9 +2136,10 @@ function finish(success,title){
   multiply('PROFITS',profitMultiplier);
   multiply('PRESTIGE',prestigeGoldMultiplier());
   multiply('DRACO ABILITIES',dracoMultiplier);
+  multiply('CHALLENGE REWARD',preflightRun?preflightMultiplier():1);
   showGoldTally(steps,banked,save.gold);
  }else{tallyTimers.forEach(clearTimeout);const tally=$('goldTally');if(tally)tally.style.display='none';$('resulttext').style.display='';}
- window.dracoEnd?.();$('toast').style.display='none';$('result').style.display='flex';updateMenu();
+ window.dracoEnd?.();preflightRun=false;$('toast').style.display='none';$('result').style.display='flex';updateMenu();
 }
 let runTaskStats={crates:0,golden:0,obsidian:0,magma:0,outposts:0,damage:0};
 function notify(s){$('toast').textContent=s;$('toast').style.display='block';toastTime=2.5}
@@ -2142,7 +2152,7 @@ function activateFuelDump(){
 function enterReturnPhase(message){
  if(!active||phase!=='collect')return;
  phase='return';
- remaining=window.ursaReturnTime?.((45+save.returnfuel*.25+shipLevel('s05')*5)*(isClass('hoarder')?2.5:1))??(45+save.returnfuel*.25+shipLevel('s05')*5)*(isClass('hoarder')?2.5:1);
+ remaining=(window.ursaReturnTime?.((45+save.returnfuel*.25+shipLevel('s05')*5)*(isClass('hoarder')?2.5:1))??(45+save.returnfuel*.25+shipLevel('s05')*5)*(isClass('hoarder')?2.5:1))*(preflightHas('shortFuel')?.75:1);
  drillUsed=false;drillActive=false;
  notify(message||'COLLECTION OVER — RETURN TO STATION!');
 }
