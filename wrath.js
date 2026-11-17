@@ -25,6 +25,7 @@
  function removeOrdinary(r,source){
   const i=rocks.indexOf(r);
   if(i<0)return false;
+  window.deepBlueFadeAsteroid?.(r);
   window.dracoRockDestroyed?.(r);
   rocks.splice(i,1);markRock(r);checkEmptyChunk(r.chunk);
   if(source==='dan'){
@@ -37,8 +38,8 @@
  function destroyRadius(x,y,radius,source){
   const take=r=>len(r.x-x,r.y-y)<=radius;
   for(const r of rocks.slice())if(take(r))removeOrdinary(r,source);
-  goldenRocks=goldenRocks.filter(r=>!take(r));
-  bronzeRocks=bronzeRocks.filter(r=>!take(r));
+  goldenRocks=goldenRocks.filter(r=>{if(take(r)){window.deepBlueFadeAsteroid?.(r);return false}return true});
+  bronzeRocks=bronzeRocks.filter(r=>{if(take(r)){window.deepBlueFadeAsteroid?.(r);return false}return true});
  }
  function createDrone(temporary=false){
   const a=drones.length*2.39996;
@@ -178,8 +179,8 @@
   const halfW=W/(2*CAMERA_SCALE)+12,halfH=H/(2*CAMERA_SCALE)+12;
   const x=player.x,y=player.y,inside=r=>Math.abs(r.x-x)<=halfW&&Math.abs(r.y-y)<=halfH;
   for(const r of rocks.slice())if(inside(r))removeOrdinary(r,'pulse');
-  goldenRocks=goldenRocks.filter(r=>!inside(r));
-  bronzeRocks=bronzeRocks.filter(r=>!inside(r));
+  goldenRocks=goldenRocks.filter(r=>{if(inside(r)){window.deepBlueFadeAsteroid?.(r);return false}return true});
+  bronzeRocks=bronzeRocks.filter(r=>{if(inside(r)){window.deepBlueFadeAsteroid?.(r);return false}return true});
   if(has(12))outpostBullets=outpostBullets.filter(b=>!inside(b));
   if(has(13))zones.push({x,y,halfW,halfH,t:15});
   effects.push({x,y,t:1,r:Math.max(halfW,halfH),color:'#ff5477',pulse:true});
