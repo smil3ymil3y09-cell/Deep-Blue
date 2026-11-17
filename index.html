@@ -1910,8 +1910,30 @@ function makeStarryGoldDeposit(p){
   formation.crates.push(crate);crates.push(crate);
  }
 }
+// Use the same seeded candidates as normal Starry Sky, generated locally past the mapped radius.
+function frontierStarryCandidate(cx,cy){
+ const rng=chunkRandom(cx+48117,cy-19371);
+ return rng()<.88?{x:(cx+.16+rng()*.68)*STARRY_CELL,y:(cy+.16+rng()*.68)*STARRY_CELL,key:cx+','+cy,priority:rng()}:null;
+}
 function updateStarryDeposits(dt){
  starryClock-=dt;if(starryClock>0)return;starryClock=.5;
+ if(!voidWorld()&&Math.hypot(player.x,player.y)>BIOME_LIMIT-1900){
+  const cx=Math.floor(player.x/STARRY_CELL),cy=Math.floor(player.y/STARRY_CELL);
+  for(let x=cx-2;x<=cx+2;x++)for(let y=cy-2;y<=cy+2;y++){
+   const p=frontierStarryCandidate(x,y);
+   if(!p||starrySpawned.has(p.key)||biomeAt(p.x,p.y)!==3||
+      Math.hypot(p.x-player.x,p.y-player.y)>1900||
+      specialFormations.some(f=>Math.hypot(p.x-f.x,p.y-f.y)<f.clearRadius+550))continue;
+   let defeated=false;
+   for(let dx=-1;dx<=1&&!defeated;dx++)for(let dy=-1;dy<=1;dy++){
+    if(!dx&&!dy)continue;
+    const q=frontierStarryCandidate(x+dx,y+dy);
+    if(q&&Math.hypot(q.x-p.x,q.y-p.y)<STARRY_GAP&&
+      (q.priority<p.priority||(q.priority===p.priority&&q.key<p.key))){defeated=true;break}
+   }
+   if(!defeated){starrySpawned.add(p.key);makeStarryGoldDeposit(p)}
+  }
+ }
  for(const p of starryLocations){
   if(starrySpawned.has(p.key)||Math.hypot(p.x-player.x,p.y-player.y)>1900)continue;
   starrySpawned.add(p.key);makeStarryGoldDeposit(p);
