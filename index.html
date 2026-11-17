@@ -1458,8 +1458,8 @@ function biomeAt(x,y){
   const chosen=preflightMode==='seed'?Number($('pfWeather').value):NaN;
   if(Number.isInteger(chosen)&&chosen>=0&&chosen<=5)return chosen;
   // Continuous seeded biome fields, valid at any coordinate without storing an infinite map.
-  let best=1,score=-Infinity;
-  for(let type=1;type<=5;type++){
+  let best=0,score=-Infinity;
+  for(let type=0;type<=5;type++){
    const a=biomeNoise(x,y,8800,(expeditionSeed+Math.imul(type,911382323))|0);
    const b=biomeNoise(x,y,3200,(expeditionSeed^Math.imul(type,2038074743))|0);
    const v=a*.82+b*.18;
@@ -1527,7 +1527,7 @@ function updateAltar(dt){
 function generateBiomeMap(){
  if(!voidWorld()){
   biomeGrid=null;biomeTargets=Array(6).fill(0);biomeCoverage=Array(6).fill(0);
-  biomeDominants=[1,2,3,4,5];return;
+  biomeDominants=[0,1,2,3,4,5];return;
  }
  if(preflightRun&&preflightMode==='seed'&&$('pfWeather').value!=='normal'){
  const kind=Number($('pfWeather').value),grid=new Int8Array(BIOME_SIDE*BIOME_SIDE).fill(-1);
@@ -1535,60 +1535,105 @@ function generateBiomeMap(){
  biomeGrid=grid;biomeTargets=Array(6).fill(0);biomeTargets[kind]=100;biomeCoverage=biomeTargets.slice();biomeDominants=[kind,kind,kind];return;
  }
  const rng=wreckRandom((expeditionSeed^0xb10be777)>>>0);
- // Exactly three biome types are selected on Void-enabled maps.
- const availableBiomes=[1,2,3,BIOME_SHATTERED,BIOME_CRYSTAL];
- // Void expeditions use exactly three randomly selected biome types (plus clear space).
- for(let i=availableBiomes.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[availableBiomes[i],availableBiomes[j]]=[availableBiomes[j],availableBiomes[i]]}
+ // Sample exactly three from all SIX biome types. Clear Space (0) is a normal
+ // candidate, not an automatic fourth biome. The inner 10k is always clear
+ // regardless of which three were selected.
+ const availableBiomes=[0,1,2,3,BIOME_SHATTERED,BIOME_CRYSTAL];
+ for(let i=availableBiomes.length-1;i>0;i--){
+  const j=Math.floor(rng()*(i+1));
+  [availableBiomes[i],availableBiomes[j]]=[availableBiomes[j],availableBiomes[i]];
+ }
  biomeDominants=availableBiomes.slice(0,3);
- const biomeTypes=[0,...biomeDominants];
- const free=30+rng()*10;let a,b,d;
- do{a=65/3+rng()*20-10;b=65/3+rng()*20-10;d=100-free-a-b}while(Math.abs(d-65/3)>10);
- const targets=[free,a,b,d];biomeTargets=Array(6).fill(0);for(let k=0;k<4;k++)biomeTargets[biomeTypes[k]]=targets[k];
- const n=BIOME_SIDE**2,grid=new Int8Array(n).fill(-1),scores=new Float32Array(n*4),valid=[];
- const seeds=Array.from({length:14},()=>Math.floor(rng()*1e9)),directions=[-2.35,-.79,Math.PI/2];
+ const biomeTypes=biomeDominants;
+ // Balance the three selected biomes across the outer ring. The forced safe
+ // zone does not count toward their target percentages.
+ const a=27+rng()*13,b=27+rng()*13;
+ const targets=[a,b,100-a-b];
+ biomeTargets=Array(6).fill(0);
+ for(let k=0;k<3;k++)biomeTargets[biomeTypes[k]]=targets[k];
+
+ const n=BIOME_SIDE**2,grid=new Int8Array(n).fill(-1);
+ const scores=new Float32Array(n*3),valid=[];
+ const seeds=Array.from({length:11},()=>Math.floor(rng()*1e9));
+ const directions=[-2.35,-.79,Math.PI/2];
+
  for(let y=0;y<BIOME_SIDE;y++)for(let x=0;x<BIOME_SIDE;x++){
-  const wx=(x+.5)*BIOME_STEP-BIOME_LIMIT,wy=(y+.5)*BIOME_STEP-BIOME_LIMIT,dist=Math.hypot(wx,wy),idx=y*BIOME_SIDE+x;
-  if(dist<BIOME_SAFE){grid[idx]=0;continue}if(dist>=BIOME_LIMIT)continue;
+  const wx=(x+.5)*BIOME_STEP-BIOME_LIMIT,wy=(y+.5)*BIOME_STEP-BIOME_LIMIT;
+  const dist=Math.hypot(wx,wy),idx=y*BIOME_SIDE+x;
+  if(dist<BIOME_SAFE){grid[idx]=-2;continue}
+  if(dist>=BIOME_LIMIT)continue;
   valid.push(idx);
-  const ax=wx+(biomeNoise(wx,wy,7500,seeds[0])-.5)*5200,ay=wy+(biomeNoise(wx,wy,7500,seeds[1])-.5)*5200,angle=Math.atan2(-wy,wx);
-  for(let type=0;type<4;type++){
-   const pref=type===0?0:Math.max(...directions.map((v,i)=>biomeDominants[i]===biomeTypes[type]?Math.cos(angle-v):-2));
-   scores[idx*4+type]=biomeNoise(ax,ay,10500,seeds[type+2])*.66+biomeNoise(ax,ay,3700,seeds[type+6])*.26+biomeNoise(ax,ay,1200,seeds[type+10])*.08+pref*.15;
+  const ax=wx+(biomeNoise(wx,wy,7500,seeds[0])-.5)*5200;
+  const ay=wy+(biomeNoise(wx,wy,7500,seeds[1])-.5)*5200;
+  const angle=Math.atan2(-wy,wx);
+  for(let type=0;type<3;type++){
+   const pref=Math.cos(angle-directions[type]);
+   scores[idx*3+type]=biomeNoise(ax,ay,10500,seeds[type+2])*.66
+    +biomeNoise(ax,ay,3700,seeds[type+5])*.26
+    +biomeNoise(ax,ay,1200,seeds[type+8])*.08
+    +pref*.15;
   }
  }
- const bias=[.05,0,0,0];
+
+ const bias=[0,0,0];
  for(let pass=0;pass<95;pass++){
-  const counts=[0,0,0,0];
-  for(const idx of valid){let winner=0,best=-Infinity;for(let k=0;k<4;k++){const s=scores[idx*4+k]+bias[k];if(s>best){best=s;winner=k}}grid[idx]=winner;counts[winner]++}
-  for(let k=0;k<4;k++)bias[k]+=(targets[k]-counts[k]*100/valid.length)*.0015;
+  const counts=[0,0,0];
+  for(const idx of valid){
+   let winner=0,best=-Infinity;
+   for(let k=0;k<3;k++){
+    const score=scores[idx*3+k]+bias[k];
+    if(score>best){best=score;winner=k}
+   }
+   grid[idx]=winner;counts[winner]++;
+  }
+  for(let k=0;k<3;k++)bias[k]+=(targets[k]-counts[k]*100/valid.length)*.0015;
  }
- // Remove small connected weather components (minimum 0.5% of whole circular universe).
+
+ // Remove tiny disconnected islands for ALL selected biome types, including
+ // Clear Space when it is selected. -2 is the forced 10k safe core.
  const minCells=Math.ceil(Math.PI*BIOME_LIMIT**2*.005/BIOME_STEP**2);
  for(let pass=0;pass<4;pass++){
   const seen=new Uint8Array(n),small=[];
   for(const start of valid){
-   if(grid[start]===0||seen[start])continue;
+   if(seen[start])continue;
    const type=grid[start],queue=[start];seen[start]=1;
    for(let q=0;q<queue.length;q++){
     const at=queue[q],x=at%BIOME_SIDE,y=(at/BIOME_SIDE)|0;
-    for(const next of [x?at-1:-1,x<BIOME_SIDE-1?at+1:-1,y?at-BIOME_SIDE:-1,y<BIOME_SIDE-1?at+BIOME_SIDE:-1])
-     if(next>=0&&!seen[next]&&grid[next]===type){seen[next]=1;queue.push(next)}
+    for(const next of [
+     x?at-1:-1,x<BIOME_SIDE-1?at+1:-1,
+     y?at-BIOME_SIDE:-1,y<BIOME_SIDE-1?at+BIOME_SIDE:-1
+    ]){
+     if(next>=0&&!seen[next]&&grid[next]===type){
+      seen[next]=1;queue.push(next);
+     }
+    }
    }
    if(queue.length<minCells)small.push(queue);
   }
   if(!small.length)break;
   for(const component of small){
-   const counts=[0,0,0,0];
-   for(const idx of component){const x=idx%BIOME_SIDE,y=(idx/BIOME_SIDE)|0;for(const next of [x?idx-1:-1,x<BIOME_SIDE-1?idx+1:-1,y?idx-BIOME_SIDE:-1,y<BIOME_SIDE-1?idx+BIOME_SIDE:-1])if(next>=0&&grid[next]>=0&&grid[next]!==grid[idx])counts[grid[next]]++}
+   const counts=[0,0,0];
+   for(const idx of component){
+    const x=idx%BIOME_SIDE,y=(idx/BIOME_SIDE)|0;
+    for(const next of [
+     x?idx-1:-1,x<BIOME_SIDE-1?idx+1:-1,
+     y?idx-BIOME_SIDE:-1,y<BIOME_SIDE-1?idx+BIOME_SIDE:-1
+    ]){
+     if(next>=0&&grid[next]>=0&&grid[next]!==grid[idx])counts[grid[next]]++;
+    }
+   }
    const type=counts.indexOf(Math.max(...counts));
    for(const idx of component)grid[idx]=type;
   }
  }
- const counts=[0,0,0,0];for(const idx of valid)counts[grid[idx]]++;
+
+ const counts=[0,0,0];
+ for(const idx of valid)counts[grid[idx]]++;
  biomeCoverage=Array(6).fill(0);
- for(let k=0;k<4;k++)biomeCoverage[biomeTypes[k]]=counts[k]*100/valid.length;
- // The generator's 0–3 temporary lanes are mapped to real biome IDs after smoothing.
+ for(let k=0;k<3;k++)biomeCoverage[biomeTypes[k]]=counts[k]*100/valid.length;
  for(const idx of valid)grid[idx]=biomeTypes[grid[idx]];
+ // Leave core cells as -2: biomeAt always returns Clear Space inside 10k,
+ // but must not blend that forced region into the outer biome selection.
  biomeGrid=grid;
  console.info('Biome map', {seed:expeditionSeed,targets:biomeTargets,coverage:biomeCoverage,dominants:biomeDominants});
 }
@@ -2084,7 +2129,7 @@ function preflightOpen(){
 }
 function preflightRefresh(){
  $('pfVoid').checked=preflightVoidEnabled;
- $('pfVoidDescription').textContent=preflightVoidEnabled?'ON · Three randomly chosen biomes, with the Void beyond 30,000.':'OFF · Endless space, all five biomes available anywhere, and no Void pull.';
+ $('pfVoidDescription').textContent=preflightVoidEnabled?'ON · Three randomly chosen biomes, with the Void beyond 30,000.':'OFF · Endless space, all six biomes (including Clear Space) available anywhere, and no Void pull.';
  const seed=preflightMode==='seed';
  $('pfChallengeBody').hidden=seed;$('pfSeedBody').hidden=!seed;
  $('pfChallenge').classList.toggle('active',!seed);$('pfSeed').classList.toggle('active',seed);
