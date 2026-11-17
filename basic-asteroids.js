@@ -64,7 +64,42 @@ function rockOverlapsWreck(x,y,rockRadius=0){
  }
  return false
 }
-function ensureRockChunk(cx,cy){const key=cx+','+cy;if(rockChunks.has(key)||window.wrathIsClearedChunk?.(key))return;rockChunks.add(key);const nearX=cx>0?cx*ROCK_CHUNK:cx< -1?(cx+1)*ROCK_CHUNK:0,nearY=cy>0?cy*ROCK_CHUNK:cy< -1?(cy+1)*ROCK_CHUNK:0;if(nearX*nearX+nearY*nearY>=BIOME_LIMIT*BIOME_LIMIT)return;const random=chunkRandom(cx,cy);const count=BASIC_ASTEROID_CONFIG.minPerChunk+Math.floor(random()*BASIC_ASTEROID_CONFIG.additionalPerChunk);for(let i=0;i<count;i++){const s=SHIP*(1+Math.floor(random()*BASIC_ASTEROID_CONFIG.sizeSteps));const x=(cx+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK,y=(cy+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK,id=key+':'+i;if(!withinWorld(x,y)||altarContains(x,y)||Math.hypot(x,y)<150||overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2)||window.wrathSkipRock?.(id,x,y))continue;rocks.push({id,x,y,s,vx:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,vy:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,rot:random()*6.28,chunk:key})}}
+function ensureRockChunk(cx,cy){
+ const key=cx+','+cy;
+ if(rockChunks.has(key)||window.wrathIsClearedChunk?.(key))return;
+ rockChunks.add(key);
+ const nearX=cx>0?cx*ROCK_CHUNK:cx< -1?(cx+1)*ROCK_CHUNK:0;
+ const nearY=cy>0?cy*ROCK_CHUNK:cy< -1?(cy+1)*ROCK_CHUNK:0;
+ if(nearX*nearX+nearY*nearY>=BIOME_LIMIT*BIOME_LIMIT)return;
+
+ const random=chunkRandom(cx,cy);
+ // Crystal Expanse doubles ordinary asteroid attempts; crate/reward rates are untouched.
+ const chunkBiome=biomeAt((cx+.5)*ROCK_CHUNK,(cy+.5)*ROCK_CHUNK);
+ const baseline=BASIC_ASTEROID_CONFIG.minPerChunk+Math.floor(random()*BASIC_ASTEROID_CONFIG.additionalPerChunk);
+ const count=baseline*(chunkBiome===BIOME_CRYSTAL?2:1);
+
+ for(let i=0;i<count;i++){
+  const x=(cx+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK;
+  const y=(cy+BASIC_ASTEROID_CONFIG.spawnInset+random()*BASIC_ASTEROID_CONFIG.spawnSpan)*ROCK_CHUNK;
+  const biome=biomeAt(x,y);
+  // Shattered Belt: only huge (2 x former largest) or tiny (1/2 former smallest).
+  // Approximately 20% colossal and 80% shards; normal asteroid count.
+  const s=biome===BIOME_SHATTERED
+   ? SHIP*(random()<.20?BASIC_ASTEROID_CONFIG.sizeSteps*2:.5)
+   : SHIP*(1+Math.floor(random()*BASIC_ASTEROID_CONFIG.sizeSteps));
+  const stationary=biome===BIOME_CRYSTAL&&random()<.5;
+  const id=key+':'+i;
+  if(!withinWorld(x,y)||altarContains(x,y)||Math.hypot(x,y)<150||
+     overlapsGoldenClearance(x,y,s/2)||rockOverlapsWreck(x,y,s/2)||
+     window.wrathSkipRock?.(id,x,y))continue;
+  rocks.push({
+   id,x,y,s,biome,stationary,
+   vx:stationary?0:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,
+   vy:stationary?0:(random()-.5)*BASIC_ASTEROID_CONFIG.driftSpread,
+   rot:random()*6.28,chunk:key
+  });
+ }
+}
 // Load enough existing-density chunks to cover the wider mobile camera.
 // Desktop retains the original 2-chunk loading and 3-chunk retention radius.
 function rockChunkViewRadius(){
@@ -110,5 +145,5 @@ function spawnStartingResources(){
 // Drift and world-edge bounce for ordinary grey rocks only.
 function moveOrdinaryAsteroids(dt){
 const beltRockSpeed=biomeAt(player.x,player.y)===2?2:1;
-for(const r of rocks){r.x+=r.vx*dt*beltRockSpeed*(window.ursaAsteroidSpeed?.()??1);r.y+=r.vy*dt*beltRockSpeed*(window.ursaAsteroidSpeed?.()??1);if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}
+for(const r of rocks){if(r.stationary)continue;r.x+=r.vx*dt*beltRockSpeed*(window.ursaAsteroidSpeed?.()??1);r.y+=r.vy*dt*beltRockSpeed*(window.ursaAsteroidSpeed?.()??1);if(!withinWorld(r.x,r.y)){const len=Math.hypot(r.x,r.y)||1;r.x*=(BIOME_LIMIT-1)/len;r.y*=(BIOME_LIMIT-1)/len;r.vx*=-1;r.vy*=-1}keepRockOutsideGoldenZone(r)}
 }
