@@ -121,7 +121,7 @@
      targets.sort((x,y)=>distance(x.x,x.y,b.x,b.y)-distance(y.x,y.y,b.x,b.y));
      const r=targets[0],index=rocks.indexOf(r);
      if(index<0)continue;
-     window.wrathRecordDestroyed?.(r);rocks.splice(index,1);
+     window.deepBlueFadeAsteroid?.(r);window.wrathRecordDestroyed?.(r);rocks.splice(index,1);
      if(r.chunk&&!rocks.some(other=>other.chunk===r.chunk))window.wrathMarkEmptyChunk?.(r.chunk);
      bronzeFromRock(r);
     }
