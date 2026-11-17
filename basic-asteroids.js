@@ -70,7 +70,7 @@ function ensureRockChunk(cx,cy){
  rockChunks.add(key);
  const nearX=cx>0?cx*ROCK_CHUNK:cx< -1?(cx+1)*ROCK_CHUNK:0;
  const nearY=cy>0?cy*ROCK_CHUNK:cy< -1?(cy+1)*ROCK_CHUNK:0;
- if(nearX*nearX+nearY*nearY>=BIOME_LIMIT*BIOME_LIMIT)return;
+ if(voidWorld()&&nearX*nearX+nearY*nearY>=BIOME_LIMIT*BIOME_LIMIT)return;
 
  const random=chunkRandom(cx,cy);
  // Crystal Expanse doubles ordinary asteroid attempts; crate/reward rates are untouched.
