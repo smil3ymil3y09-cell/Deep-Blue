@@ -4,7 +4,7 @@
 <style>
 :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,Arial,sans-serif}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;color:#e8f7fc;background:radial-gradient(ellipse at 25% 0,#163e61 0,#091b30 36%,#050c1a 90%);line-height:1.5}
+body{margin:0;min-height:100vh;color:#e8f7fc;background:radial-gradient(ellipse at 15% 0,#155778 0,#112c51 24%,#09192f 48%,#050c1a 86%);line-height:1.5}
 main{max-width:1390px;margin:0 auto;padding:32px 24px 70px}
 .topline{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:24px;flex-wrap:wrap}
 .brand{font-weight:850;letter-spacing:.23em;font-size:13px;color:#81dbed}
@@ -12,11 +12,11 @@ a{color:#9bfff2;text-decoration:none;border:1px solid #36637b;border-radius:9px;
 h1{font-size:clamp(32px,5vw,57px);letter-spacing:-.06em;line-height:1.08;margin:10px 0}
 .sub{color:#a7c1d5;max-width:690px;font-size:15px;margin:0 0 26px}
 .layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);align-items:start;gap:22px}
-.panel{background:linear-gradient(155deg,#10243aeb,#081425eb);border:1px solid #28475d;box-shadow:0 12px 60px #02081189;border-radius:18px;padding:16px}
+.panel{background:linear-gradient(155deg,#102b49f4,#071428f5);border:1px solid #3c6582;box-shadow:0 12px 60px #020811a0,0 0 38px #24a7cf12;border-radius:18px;padding:16px}
 .mapbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:3px 3px 14px}
 .mapbar strong{letter-spacing:.12em;font-size:12px}
 .meta{font:11px ui-monospace,Consolas,monospace;color:#91b3c6}
-.mapbox{position:relative;overflow:hidden;border-radius:12px;border:1px solid #32526a;background:#060f1d}
+.mapbox{position:relative;overflow:hidden;border-radius:12px;border:1px solid #6097b4;background:#060f1d;box-shadow:inset 0 0 45px #3c9cd823,0 0 45px #40c6ee13}
 canvas{width:100%;display:block;aspect-ratio:1/1;touch-action:none;cursor:crosshair}
 .radarframe{position:absolute;inset:11px;pointer-events:none;border:1px solid #6aa4b126;border-radius:6px}
 .controls{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 4px 0;flex-wrap:wrap}
@@ -29,9 +29,12 @@ button.primary:hover{filter:brightness(1.09)}
 .settings label.field{display:block;font-size:12px;letter-spacing:.07em;color:#aac9da;margin:0 0 10px}
 .settings input[type=text]{width:100%;border:1px solid #3d6077;background:#081a2c;padding:12px;color:#e9fbff;border-radius:9px;font:14px ui-monospace,Consolas,monospace;outline:none}
 .actions{display:flex;gap:10px;margin:12px 0 24px;flex-wrap:wrap}.actions button{flex:1}
-.toggle{display:flex;justify-content:space-between;align-items:center;padding:14px;background:#122b42;border:1px solid #35566d;border-radius:12px;gap:14px;cursor:pointer}
+.toggle{display:flex;justify-content:space-between;align-items:center;padding:14px;background:#102d48;border:1px solid #4e7a9c;border-radius:12px;gap:14px}
 .toggle b{display:block;font-size:14px}.toggle small{color:#adc3d7;display:block;margin-top:5px;font-size:12px}
-.toggle input{width:24px;height:24px;accent-color:#60e8d8;cursor:pointer}
+.mode-switch{display:flex;gap:4px;flex-shrink:0;padding:4px;border:1px solid #456981;border-radius:11px;background:#061624}
+.mode-switch button{min-width:58px;padding:9px 12px;border:0;border-radius:8px;background:transparent;color:#a4c2d3;font-size:12px;transition:background .15s,box-shadow .15s,color .15s}
+.mode-switch button[aria-pressed=true]{background:linear-gradient(135deg,#39c6de,#8beddb);box-shadow:0 0 18px #5be2d34d;color:#06233a}
+.mode-switch button:focus-visible{outline:2px solid #f5ecba;outline-offset:2px}
 .status{padding:17px 0;border-bottom:1px solid #27465a}
 .status strong{display:block;font-size:13px;letter-spacing:.12em;color:#80e1df}
 .status p{font-size:13px;color:#b8cddd;margin:7px 0 0}
@@ -59,7 +62,7 @@ kbd{font:12px ui-monospace,Consolas,monospace;border:1px solid #456077;border-ra
   <h2>Generation controls</h2>
   <label class="field" for="seed">UNIVERSE SEED</label><input type="text" id="seed" spellcheck="false" autocomplete="off">
   <div class="actions"><button id="applySeed">Apply seed</button><button id="generate" class="primary">↻ Regenerate universe</button></div>
-  <label class="toggle" for="voidMode"><span><b>Play with Void</b><small>30,000-unit boundary / unlimited frontier</small></span><input id="voidMode" type="checkbox" checked></label>
+  <div class="toggle"><span><b>Play with Void</b><small>30,000-unit boundary / unlimited frontier</small></span><div class="mode-switch" role="group" aria-label="Play with Void"><button type="button" id="voidOn" aria-pressed="true">ON</button><button type="button" id="voidOff" aria-pressed="false">OFF</button></div></div>
   <div class="status"><strong id="modeValue">VOID ENABLED</strong><p id="modeDesc"></p></div>
   <div class="info-label">SELECTED BIOMES</div><div id="selected"></div>
   <div class="info-label">COLOUR KEY</div><div id="biomes" class="legend"></div>
@@ -73,7 +76,8 @@ const BIOME_LIMIT=30000,BIOME_SAFE=10000,BIOME_STEP=375,BIOME_SIDE=160;
 const BIOME_SHATTERED=4,BIOME_CRYSTAL=5,BIOME_ALTAR=6;
 const BIOME_COLORS=['#31546b','#a45ac7','#e2a05c','#b6c5ed','#643d2a','#ff79c6','#31546b'];
 const names=['Clear space','Nebula','Asteroid Belt','Starry Sky','Shattered Belt','Crystal Expanse','Altar'];
-const rgb=[[18,49,70],[164,90,199],[226,160,92],[182,197,237],[100,61,42],[255,121,198],[244,230,208]];
+// Vivid Map Forge colours. Gameplay radar colours remain unchanged.
+const rgb=[[12,52,79],[193,68,255],[255,182,75],[145,210,255],[123,62,39],[255,93,190],[255,238,198]];
 let biomeGrid=null,biomeTargets=[],biomeCoverage=[],biomeDominants=[];
 let altar=null,altarActivated=false,altarMessageTime=0,altarShakeTime=0,altarButton=null,altarMessage=null;
 let preflightRun=true,preflightMode='challenge',preflightVoidEnabled=true,expeditionSeed=0;
@@ -214,7 +218,7 @@ function generateBiomeMap(){
 
 const canvas=$('map'),ctx=canvas.getContext('2d',{alpha:false});
 const terrain=document.createElement('canvas');
-terrain.width=terrain.height=360;
+terrain.width=terrain.height=440;
 const terrainCtx=terrain.getContext('2d');
 let viewX=0,viewY=0,zoom=1,dragging=null,painting=false,drawPending=false;
 const fmt=n=>Math.round(n).toLocaleString('en-GB');
@@ -239,13 +243,29 @@ function draw(){
  if(!canvas.width||!canvas.height)return;
  const size=terrain.width,radius=BIOME_LIMIT/zoom;
  const pixels=terrainCtx.createImageData(size,size),data=pixels.data;
+ const kinds=new Int8Array(size*size);
+ // Render vibrant, crisp biome regions instead of a greyed-out texture.
  for(let py=0;py<size;py++)for(let px=0;px<size;px++){
   const wx=viewX+((px+.5)/size*2-1)*radius,wy=viewY+((py+.5)/size*2-1)*radius;
-  const kind=biomeAt(wx,wy),off=(py*size+px)*4;
-  const color=kind<0?[4,9,20]:rgb[kind]||rgb[0];
-  const grit=((px*73+py*137+expeditionSeed)%13-6)*.48;
-  for(let k=0;k<3;k++)data[off+k]=Math.min(255,Math.max(0,color[k]+grit));
+  const kind=biomeAt(wx,wy),index=py*size+px,off=index*4;
+  kinds[index]=kind;
+  const color=kind<0?[2,5,17]:rgb[kind]||rgb[0];
+  const grain=((px*73+py*137+expeditionSeed)%17-8)*.45;
+  // Crystals glisten, Starry Sky is bright; Shattered Belt stays dark brown.
+  const sparkle=((Math.imul(px+1,15485863)^Math.imul(py+1,32452843)^expeditionSeed)>>>0)%811===0;
+  const glint=sparkle?(kind===BIOME_CRYSTAL?82:kind===3?65:kind===1?40:15):0;
+  for(let k=0;k<3;k++)data[off+k]=Math.min(255,Math.max(0,color[k]+grain+glint));
   data[off+3]=255;
+ }
+ // Give terrain transitions a thin bright rim to restore the original lively radar feel.
+ for(let py=1;py<size-1;py++)for(let px=1;px<size-1;px++){
+  const index=py*size+px,kind=kinds[index];
+  if(kind<1||kind===BIOME_ALTAR)continue;
+  if(kinds[index-1]!==kind||kinds[index+1]!==kind||
+     kinds[index-size]!==kind||kinds[index+size]!==kind){
+   const off=index*4,boost=kind===BIOME_SHATTERED?18:kind===BIOME_CRYSTAL?43:31;
+   for(let k=0;k<3;k++)data[off+k]=Math.min(255,data[off+k]+boost);
+  }
  }
  terrainCtx.putImageData(pixels,0,0);
  ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -258,17 +278,19 @@ function draw(){
   ctx.strokeStyle=color;ctx.lineWidth=width*sz/820;ctx.setLineDash(dash.map(v=>v*sz/820));ctx.stroke();ctx.setLineDash([]);
  };
  ctx.save();
- ring(BIOME_SAFE,'rgba(167,237,232,.86)',2,[6,8]);
- if(voidWorld())ring(BIOME_LIMIT,'rgba(255,139,162,.80)',3,[11,8]);
+ ring(BIOME_SAFE,'rgba(120,255,241,.97)',2.6,[6,7]);
+ if(voidWorld())ring(BIOME_LIMIT,'rgba(255,117,150,.92)',3.2,[11,7]);
  const [x,y]=position(0,0);
- ctx.fillStyle='#86f8ee';ctx.beginPath();ctx.arc(x,y,Math.max(3,sz/160),0,Math.PI*2);ctx.fill();
- ctx.shadowBlur=18*sz/820;ctx.shadowColor='#66d9cf';ctx.strokeStyle='#d4fffb';ctx.lineWidth=1.4*sz/820;ctx.beginPath();ctx.arc(x,y,9*sz/820,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
+ ctx.shadowBlur=24*sz/820;ctx.shadowColor='#5effe7';
+ ctx.fillStyle='#a1fff4';ctx.beginPath();ctx.arc(x,y,Math.max(3,sz/160),0,Math.PI*2);ctx.fill();
+ ctx.shadowBlur=10*sz/820;ctx.strokeStyle='#d4fffb';ctx.lineWidth=1.4*sz/820;ctx.beginPath();ctx.arc(x,y,9*sz/820,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
  if(altar){
   const [ax,ay]=position(altar.x,altar.y);
   if(ax>-20&&ay>-20&&ax<sz+20&&ay<sz+20){
+   ctx.shadowColor='#fff6c7';ctx.shadowBlur=16*sz/820;
    ctx.strokeStyle='#fff2cf';ctx.fillStyle='#fff2cf';ctx.lineWidth=2*sz/820;
    ctx.beginPath();ctx.arc(ax,ay,5*sz/820,0,Math.PI*2);ctx.fill();
-   ctx.beginPath();ctx.arc(ax,ay,13*sz/820,0,Math.PI*2);ctx.stroke();
+   ctx.beginPath();ctx.arc(ax,ay,13*sz/820,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
   }
  }
  ctx.restore();
@@ -292,13 +314,14 @@ function updateLegend(){
  ? 'Three biome types per map · a 10,000-unit clear core · the Void begins at 30,000.'
  : 'All five biome types can generate at any distance beyond the 10,000-unit clear core. Pan to explore the endless frontier.';
  $('modeValue').textContent=voidWorld()?'VOID ENABLED':'ENDLESS FRONTIER';
+ $('voidOn').setAttribute('aria-pressed',String(preflightVoidEnabled));
+ $('voidOff').setAttribute('aria-pressed',String(!preflightVoidEnabled));
  $('selected').textContent=voidWorld()?biomeDominants.map(i=>names[i]).join(' · '):'All five biomes';
  $('seedActual').textContent=expeditionSeed.toString();
 }
 function regenerate(newSeed=false){
  if(newSeed)$('seed').value=String(randomSeed());
  expeditionSeed=parseSeed($('seed').value);
- preflightVoidEnabled=$('voidMode').checked;
  generateBiomeMap();
  altar=null;generateAltar();
  viewX=0;viewY=0;zoom=1;
@@ -307,11 +330,12 @@ function regenerate(newSeed=false){
 }
 const params=new URLSearchParams(location.search);
 $('seed').value=params.has('seed')?params.get('seed'):String(randomSeed());
-$('voidMode').checked=params.get('void')!=='off';
+preflightVoidEnabled=params.get('void')!=='off';
 $('generate').addEventListener('click',()=>regenerate(true));
 $('applySeed').addEventListener('click',()=>regenerate());
 $('seed').addEventListener('keydown',e=>{if(e.key==='Enter')regenerate()});
-$('voidMode').addEventListener('change',()=>regenerate());
+$('voidOn').addEventListener('click',()=>{if(!preflightVoidEnabled){preflightVoidEnabled=true;regenerate()}});
+$('voidOff').addEventListener('click',()=>{if(preflightVoidEnabled){preflightVoidEnabled=false;regenerate()}});
 $('reset').addEventListener('click',()=>{zoom=1;viewX=0;viewY=0;scheduleDraw()});
 function changeZoom(f){zoom=Math.max(.35,Math.min(10,zoom*f));scheduleDraw()}
 $('plus').addEventListener('click',()=>changeZoom(1.4));
@@ -323,7 +347,6 @@ canvas.addEventListener('pointermove',e=>{
  const wx=viewX+((e.clientX-rect.left)/rect.width*2-1)*radius;
  const wy=viewY+((e.clientY-rect.top)/rect.height*2-1)*radius;
  const kind=biomeAt(wx,wy);
- $('inspect').textContent=names[kind]||'Void'+' · '+fmt(wx)+' / '+fmt(wy);
  $('inspect').textContent=(names[kind]||'Void')+'  ·  X '+fmt(wx)+'  Y '+fmt(wy);
  if(dragging){viewX-=(e.clientX-dragging.x)/rect.width*2*radius;viewY-=(e.clientY-dragging.y)/rect.height*2*radius;dragging={x:e.clientX,y:e.clientY};scheduleDraw()}
 });
