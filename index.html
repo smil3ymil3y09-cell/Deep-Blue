@@ -2359,7 +2359,29 @@ wreckDraw(camX,camY);try{stationDraw(camX,camY)}catch(err){if(!window._stationRe
 for(const c of crates){let x=c.x-camX,y=c.y-camY;if(x<bounds.left-30||y<bounds.top-30||x>bounds.right+30||y>bounds.bottom+30)continue;ctx.save();ctx.translate(x,y);ctx.fillStyle=c.dracoCrown?'#ffe29b':c.kind==='magma'?'#ff6848':c.kind==='obsidian'?'#ad8de9':c.rare?'#ff9f43':'#e8ba36';ctx.shadowColor=c.dracoCrown?'#ffe18b':c.kind==='magma'?'#ff4422':c.kind==='obsidian'?'#a48aff':c.rare?'#ffb84b':'#edcc55';ctx.shadowBlur=c.dracoCrown?29:c.rare?20:8;const s=c.dracoCrown?40:c.rare?29:22;ctx.fillRect(-s/2,-s/2,s,s);ctx.shadowBlur=0;ctx.strokeStyle='#7c571d';ctx.lineWidth=3;ctx.strokeRect(-s/2,-s/2,s,s);ctx.beginPath();ctx.moveTo(-s/2,0);ctx.lineTo(s/2,0);ctx.moveTo(0,-s/2);ctx.lineTo(0,s/2);ctx.stroke();if(c.dracoCrown){ctx.fillStyle='#fff8dd';ctx.font='bold 21px system-ui';ctx.textAlign='center';ctx.fillText('★',0,7)}if(c.rare&&bonusLevel('b18')>0&&Math.hypot(c.x-player.x,c.y-player.y)<300+100*bonusLevel('b18')){ctx.strokeStyle='#88f8ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*2);ctx.stroke()}ctx.restore()}
 // Golden asteroids are static obstacles and are drawn over the moving field.
 for(const r of goldenRocks){const x=r.x-camX,y=r.y-camY;if(x<bounds.left-r.s||y<bounds.top-r.s||x>bounds.right+r.s||y>bounds.bottom+r.s)continue;ctx.fillStyle=r.formationType==='magma'?'#7b342a':r.formationType==='obsidian'?'#38334e':'#a57b30';ctx.shadowColor=r.formationType==='magma'?'#f65c35':r.formationType==='obsidian'?'#9274c5':'#edb94b';ctx.shadowBlur=9;ctx.fillRect(x-r.s/2,y-r.s/2,r.s,r.s);ctx.shadowBlur=0;ctx.fillStyle=r.formationType==='magma'?'#c65a37':r.formationType==='obsidian'?'#696080':'#d6b65f';ctx.fillRect(x-r.s/2+5,y-r.s/2+5,r.s-10,7);ctx.fillStyle=r.formationType==='magma'?'#4c201c':r.formationType==='obsidian'?'#211e35':'#6f5225';ctx.fillRect(x-r.s/2,y+r.s/2-9,r.s,9);}
-for(const r of rocks){const x=r.x-camX,y=r.y-camY;if(x<bounds.left-r.s||y<bounds.top-r.s||x>bounds.right+r.s||y>bounds.bottom+r.s)continue;ctx.fillStyle='#737e8d';ctx.fillRect(x-r.s/2,y-r.s/2,r.s,r.s);ctx.fillStyle='#9ba5b0';ctx.fillRect(x-r.s/2+5,y-r.s/2+5,r.s-10,7);ctx.fillStyle='#424e61';ctx.fillRect(x-r.s/2,y+r.s/2-9,r.s,9);ctx.fillStyle='#657080';ctx.fillRect(x-r.s/2+15,y-r.s/2+19,Math.max(10,r.s*.16),Math.max(10,r.s*.16))}
+for(const r of rocks){
+ const x=r.x-camX,y=r.y-camY;
+ if(x<bounds.left-r.s||y<bounds.top-r.s||x>bounds.right+r.s||y>bounds.bottom+r.s)continue;
+ const crystal=r.biome===BIOME_CRYSTAL,shattered=r.biome===BIOME_SHATTERED,half=r.s/2;
+ ctx.fillStyle=crystal?(r.stationary?'#a86da3':'#ce88b5'):shattered?'#716053':'#737e8d';
+ ctx.fillRect(x-half,y-half,r.s,r.s);
+ ctx.fillStyle=crystal?'#ffcaec':shattered?'#a48a77':'#9ba5b0';
+ ctx.fillRect(x-half+5,y-half+5,Math.max(1,r.s-10),Math.min(7,r.s/5));
+ ctx.fillStyle=crystal?'#704068':shattered?'#40342b':'#424e61';
+ ctx.fillRect(x-half,y+half-9,r.s,9);
+ if(crystal){
+  // Pale facets on immobile crystals; brighter pink facets on drifting crystals.
+  ctx.fillStyle=r.stationary?'#ebc1e5':'#ffd9f3';
+  ctx.beginPath();ctx.moveTo(x-half+11,y-half+13);
+  ctx.lineTo(x+half-12,y-half+13);
+  ctx.lineTo(x+half-17,y+half-16);
+  ctx.lineTo(x+half-30,y+half-25);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#744a7c';ctx.fillRect(x-half+11,y+half-18,Math.max(7,r.s*.2),8);
+ }else{
+  ctx.fillStyle=shattered?'#5c4a3d':'#657080';
+  ctx.fillRect(x-half+15,y-half+19,Math.max(10,r.s*.16),Math.max(10,r.s*.16));
+ }
+}
 window.ursaDraw?.(camX,camY,ctx);window.geminiDraw?.(camX,camY,ctx);
 for(const b of bronzeRocks){const x=b.x-camX,y=b.y-camY;if(x<bounds.left-80||y<bounds.top-80||x>bounds.right+80||y>bounds.bottom+80)continue;if(b.flyIn){const angle=Math.atan2(b.vy,b.vx),backX=-Math.cos(angle),backY=-Math.sin(angle),sideX=-backY,sideY=backX;ctx.save();ctx.lineCap='round';for(let k=0;k<7;k++){const phase=performance.now()*.015+b.sparkPhase+k*2.4,trail=24+k*10+Math.sin(phase)*9,side=Math.sin(phase*1.7)*18;ctx.strokeStyle=k%2?'#ff3d2e':'#ffb05c';ctx.globalAlpha=.35+.55*(1-k/7);ctx.lineWidth=1.5+(k%3);ctx.beginPath();ctx.moveTo(x+backX*(18+trail*.3)+sideX*side,y+backY*(18+trail*.3)+sideY*side);ctx.lineTo(x+backX*(18+trail)+sideX*(side+Math.sin(phase)*7),y+backY*(18+trail)+sideY*(side+Math.sin(phase)*7));ctx.stroke()}ctx.restore()}ctx.save();ctx.translate(x,y);ctx.rotate(performance.now()*.0007);ctx.shadowColor='#d9894c';ctx.shadowBlur=15;ctx.fillStyle='#b86c3a';ctx.beginPath();for(let j=0;j<9;j++){const a=j*Math.PI*2/9,rr=b.s*.42*(.83+.13*Math.sin(j*17));if(j===0)ctx.moveTo(Math.cos(a)*rr,Math.sin(a)*rr);else ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}ctx.closePath();ctx.fill();ctx.strokeStyle='#f6bd7d';ctx.lineWidth=3;ctx.stroke();ctx.restore();if(Math.hypot(b.x-player.x,b.y-player.y)<100){ctx.strokeStyle='#e6a46a';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,100,0,Math.PI*2);ctx.stroke()}}
 // Hostile outposts are unmistakable red squares; disabled ones turn dark grey.
