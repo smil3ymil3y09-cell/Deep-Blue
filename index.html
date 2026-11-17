@@ -1452,7 +1452,7 @@ function biomeNoise(x,y,scale,seed){
 // Gaussian weights blend the biome ownership field before selecting the strongest region.
 function biomeAt(x,y){
  if(altar&&Math.hypot(x-altar.x,y-altar.y)<altar.radius)return BIOME_ALTAR;
- if(x*x+y*y<(voidWorld()?BIOME_SAFE*BIOME_SAFE:1200*1200))return 0;
+ if(x*x+y*y<BIOME_SAFE*BIOME_SAFE)return 0;
  if(!withinWorld(x,y))return -1;
  if(!voidWorld()){
   const chosen=preflightMode==='seed'?Number($('pfWeather').value):NaN;
