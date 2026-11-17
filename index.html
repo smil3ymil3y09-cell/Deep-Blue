@@ -321,6 +321,9 @@ try{client=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoR
 },{once:true});
 })();
 </script><script src="basic-asteroids.js"></script><script>
+// Preflight state is initialized before any research or menu startup code.
+let preflightMode='challenge',preflightSelected=new Set(),preflightRun=false;
+const preflightHas=id=>preflightRun&&preflightMode==='challenge'&&preflightSelected.has(id);
 const SPRITE='data:image/png;base64,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';const shipImg=new Image();shipImg.src=SPRITE;
 const $=id=>document.getElementById(id);const cv=$('canvas'),ctx=cv.getContext('2d');let W=0,H=0,dpr=1;
 function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false}addEventListener('resize',resize);resize();
@@ -385,7 +388,7 @@ function sanitizeLoadout(){
   used.add(a);return a;
  });
 }
-function equipped(a){return !(active&&preflightHas('noAbilities'))&&save.abilityLoadout.includes(a)}
+function equipped(a){return !preflightHas('noAbilities')&&save.abilityLoadout.includes(a)}
 function equippedBrakeSlot(){return save.abilityLoadout?save.abilityLoadout.indexOf('brake'):-1}
 function equippedTrackerSlot(){return save.abilityLoadout?save.abilityLoadout.indexOf('tracker'):-1}
 const DEFAULT_KEYBINDS={dodge:'Space',up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',...Object.fromEntries(Array.from({length:10},(_,i)=>['slot'+i,i===9?'Digit0':'Digit'+(i+1)]))};
@@ -500,7 +503,7 @@ const LUCK_RESEARCH=[
 ];
 const PROFIT_RESEARCH=[{"id":"p01","name":"Crate Appreciation","max":100,"base":1,"r":2,"desc":"+1 gold per ordinary crate per level.","x":2160,"y":1790,"req":[]},{"id":"p02","name":"Salvage Multiplier","max":100,"base":1,"r":2,"desc":"+1% to the final banked haul per level.","x":2380,"y":1650,"req":[["p01",1]]},{"id":"p03","name":"Distance Dividend","max":50,"base":2,"r":2,"desc":"+2% to the distance payout multiplier per level.","x":2610,"y":1500,"req":[["p02",1]]},{"id":"p04","name":"Task Bar","max":1,"base":3,"r":2,"desc":"Unlock the Task Bar interface. Task mechanics are coming later.","x":2370,"y":1930,"req":[["p01",1]]},{"id":"p05","name":"Golden Profits","max":100,"base":1,"r":2,"desc":"+2 base gold per golden crate per level.","x":2600,"y":1840,"req":[["p01",1]]},{"id":"p06","name":"Obsidian Profits","max":100,"base":1,"r":2,"desc":"+5 base gold per obsidian crate per level.","x":2840,"y":1750,"req":[["p05",1]]},{"id":"p07","name":"Magma Profits","max":100,"base":1,"r":2,"desc":"+10 base gold per magma crate per level.","x":3070,"y":1650,"req":[["p06",1]]},{"id":"p08","name":"Bronze Royalties","max":100,"base":2,"r":2,"desc":"+1% bronze asteroid income per level.","x":2840,"y":1380,"req":[["p03",1]]},{"id":"p09","name":"Cargo Interest","max":50,"base":2,"r":2,"desc":"+1% banked haul per 10 crates collected per level, capped at +50%.","x":2590,"y":2140,"req":[["p04",1]]},{"id":"p10","name":"Collection Dividend","max":100,"base":1,"r":2,"desc":"+1 gold per level for every fifth crate collected.","x":2820,"y":2360,"req":[["p09",1]]},{"id":"p11","name":"Golden Multiplication","max":25,"base":2,"r":2,"desc":"+0.1× golden crate value per level.","x":3070,"y":2020,"req":[["p05",1]]},{"id":"p12","name":"Obsidian Multiplication","max":25,"base":2,"r":2,"desc":"+0.1× obsidian crate value per level.","x":3310,"y":1900,"req":[["p06",1]]},{"id":"p13","name":"Magma Multiplication","max":25,"base":2,"r":2,"desc":"+0.1× magma crate value per level.","x":3550,"y":1790,"req":[["p07",1]]},{"id":"p14","name":"Safe Return Bonus","max":50,"base":2,"r":2,"desc":"+2% final payout per remaining hull point per level.","x":3090,"y":1320,"req":[["p08",1]]},{"id":"p15","name":"Profit Singularity","max":100,"base":5,"r":2,"desc":"+0.05× final banking multiplier per level.","x":3450,"y":2360,"req":[["p10",1],["p14",1]]}];
 const PROFIT_BY_ID=Object.fromEntries(PROFIT_RESEARCH.map(n=>[n.id,n]));
-const profitLevel=id=>active&&preflightHas('noProfits')?0:Math.max(0,Math.min(PROFIT_BY_ID[id].max,Number(save.profitLevels?.[id])||0));
+const profitLevel=id=>preflightHas('noProfits')?0:Math.max(0,Math.min(PROFIT_BY_ID[id].max,Number(save.profitLevels?.[id])||0));
 const profitCost=(n,l)=>Math.ceil(n.base*Math.pow(2,l));
 const profitUnlocked=n=>n.req.every(([id,level])=>profitLevel(id)>=level);
 function purchaseProfit(id){const n=PROFIT_BY_ID[id],l=profitLevel(id);if(l>=n.max||!profitUnlocked(n))return;const cost=profitCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.profitLevels[id]=l+1;(save.profitSpent[id]??=[]).push(cost);persist();updateMenu();renderTaskBar()}
@@ -732,13 +735,13 @@ const BONUS_RESEARCH=[
 {id:'b25',name:'Second Wind',max:5,base:1200,r:1.28,desc:'Automatically restore 1 hull on reaching 1 remaining hull; +1 activation per level per expedition.',x:1320,y:4530,req:[['b15',1],['b21',1],['b24',1]]}
 ];
 const BONUS_BY_ID=Object.fromEntries(BONUS_RESEARCH.map(n=>[n.id,n]));
-const bonusLevel=id=>active&&preflightHas('noBonuses')?0:Math.max(0,Math.min(BONUS_BY_ID[id].max,Number(save.bonusLevels[id])||0));
+const bonusLevel=id=>preflightHas('noBonuses')?0:Math.max(0,Math.min(BONUS_BY_ID[id].max,Number(save.bonusLevels[id])||0));
 function bonusCost(n,l){return Math.ceil(n.base*Math.pow(n.r,l)-1e-9)}
 function bonusUnlocked(n){return n.req.every(([id,l])=>bonusLevel(id)>=l)}
 function purchaseBonus(id){const n=BONUS_BY_ID[id],l=bonusLevel(id);if(l>=n.max||!bonusUnlocked(n))return;const cost=bonusCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.bonusLevels[id]=l+1;(save.bonusSpent[id]??=[]).push(cost);persist();updateMenu();renderAbilities()}
 
 const LUCK_BY_ID=Object.fromEntries(LUCK_RESEARCH.map(n=>[n.id,n]));
-const luckLevel=id=>active&&preflightHas('noLuck')?0:Math.max(0,Math.min(LUCK_BY_ID[id].max,Number(save.luckLevels[id])||0));
+const luckLevel=id=>preflightHas('noLuck')?0:Math.max(0,Math.min(LUCK_BY_ID[id].max,Number(save.luckLevels[id])||0));
 function luckCost(n,level){return Math.ceil(n.base*Math.pow(n.r,level)-1e-9)}
 function luckUnlocked(n){return n.req.every(([id,l])=>luckLevel(id)>=l)}
 function purchaseLuck(id){const n=LUCK_BY_ID[id],l=luckLevel(id);if(l>=n.max||!luckUnlocked(n))return;const cost=luckCost(n,l);if(save.gold<cost)return;save.gold=floorGold(save.gold-cost);save.luckLevels[id]=l+1;(save.luckSpent[id]??=[]).push(cost);persist();updateMenu()}
@@ -761,7 +764,7 @@ const radarInterval=()=>5-.45*radarLevel('r03');
 const radarDetection=()=>radarLevel('r01')?1+radarLevel('r04'):0;
 const SHIP_BY_ID=Object.fromEntries(SHIP_RESEARCH.map(n=>[n.id,n]));
 const DRILL_DIST=[0,60,80,110,150,200,270,350,450,600,800,1050,1350,1700,2100,2550,3050,3600,4250,4700,5000];
-const shipLevel=id=>active&&preflightHas('noShip')?0:Math.max(0,Math.min(SHIP_BY_ID[id].max,Number(save.shipLevels[id])||0));
+const shipLevel=id=>preflightHas('noShip')?0:Math.max(0,Math.min(SHIP_BY_ID[id].max,Number(save.shipLevels[id])||0));
 function shipCost(n,level){return n.prices?n.prices[level]:Math.ceil(n.base*Math.pow(n.r,level)-1e-9)}
 function shipUnlocked(n){return n.req.every(([id,l])=>shipLevel(id)>=l)}
 let selectedShip='core';
@@ -871,7 +874,7 @@ treeVP.addEventListener('pointerup',endTreePan);treeVP.addEventListener('pointer
 treeVP.addEventListener('wheel',e=>{e.preventDefault();const r=treeVP.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,old=treeZoom;treeZoom=Math.max(.2,Math.min(1.6,treeZoom*(e.deltaY<0?1.12:.89)));treePanX=x-(x-treePanX)*treeZoom/old;treePanY=y-(y-treePanY)*treeZoom/old;applyTreeView()},{passive:false});
 $('treeZoomIn').onclick=()=>{treeZoom=Math.min(1.6,treeZoom*1.2);applyTreeView()};$('treeZoomOut').onclick=()=>{treeZoom=Math.max(.2,treeZoom/1.2);applyTreeView()};$('treeReset').onclick=centerTree;
 addEventListener('resize',()=>{if($('menu').style.display!=='none')applyTreeView()});
-centerTree();migratePrestigeAbilitySlots();updateMenu();renderAbilities();
+// Research/menu initialization runs after every game state declaration, to avoid temporal-dead-zone errors.
 
 function prestigeGoldMultiplier(){const level=Math.max(0,Number(save.prestigeLevel)||0);return level>=40?81:level>=20?27:level>=10?9:level>=1?3:1}function hasPrestigeCapstone(branch){return (Number(save.prestigeLevel)||0)>=20&&save.prestigeNodes?.['pr-'+branch+'-capstone']===true}function isClass(id){return !!window.geminiIsClass?.(id)||save.selectedClass===id}function maxHull(){return Math.max(1,Math.ceil((5+shipLevel('s01')+shipLevel('s09'))*(isClass('brute')?2:1)*(preflightHas('fragile')?.5:1)))}function shipScale(){return [1,.8,.6,.5][shipLevel('s15')]*(isClass('brute')?.8:1)*(preflightHas('large')?1.5:1)}
 const rand=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));let drillUsed=false,drillActive=false,drillTravel=0,drillPreviousRock=false,shields=0;let brakeTimer=0,halTimer=0,dodgeCooldownTimer=0,dodgeIFrames=0,dodgeBurstTimer=0,dodgeDirX=0,dodgeDirY=-1;let flightWASD=false,pressedKeys=new Set(),dodgeCharges=1,dodgeChargeClock=0,dodgeSuccessful=false,dodgeBulletAwarded=false,slipstreamTimer=0,secondWindUsed=0,formationCounts={golden:0,obsidian:0,magma:0},outpostChain=0,nearMissedBullets=new WeakSet();let goldenCache=null,goldenRocks=[],specialFormations=[],bronzeRocks=[],outposts=[],outpostBullets=[],streakCount=0,dedicationTriggered=false,dedicationClean=false,maxRunDistance=0,active=false,phase='collect',remaining=30,haul=0,profitCratesCollected=0,hits=0,invuln=0,player={x:0,y:0,vx:0,vy:0},rocks=[],crates=[],particles=[],mouse={x:W/2,y:H/2-140},last=0,spawnClock=0,rockClock=0,rockChunks=new Set(),toastTime=0;
@@ -1998,8 +2001,6 @@ const PREFLIGHT_OPTIONS=[
  ['fragile','FRAGILE HULL',1.5,'Half maximum hull'],
  ['shortFuel','FUEL SHORTAGE',1.35,'25% shorter expedition timers']
 ];
-let preflightMode='challenge',preflightSelected=new Set(),preflightRun=false;
-const preflightHas=id=>preflightRun&&preflightMode==='challenge'&&preflightSelected.has(id);
 const preflightMultiplier=()=>preflightMode==='seed'?0:PREFLIGHT_OPTIONS.reduce((m,o)=>m*(preflightSelected.has(o[0])?o[2]:1),1);
 function preflightSeedHash(value){let h=2166136261;for(const c of String(value))h=Math.imul(h^c.charCodeAt(0),16777619);return h>>>0}
 function preflightOpen(){
@@ -2488,4 +2489,5 @@ function loop(t){
   if(active)requestAnimationFrame(loop);
  }
 }
+centerTree();migratePrestigeAbilitySlots();updateMenu();renderAbilities();
 </script><script src="wrath.js"></script><script src="draco.js"></script><script src="ursa.js"></script><script src="gemini.js"></script><script src="prestige-tree.js"></script><div id="copyright-notice" style="position:fixed;bottom:5px;right:10px;z-index:9999;pointer-events:none;color:rgba(205,225,235,.55);font:11px Arial,sans-serif;text-shadow:0 1px 2px #00131f">© 2026 Deep Blue. All rights reserved.</div></body></html>
